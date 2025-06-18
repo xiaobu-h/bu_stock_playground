@@ -2,7 +2,7 @@
 import backtrader as bt
 import pandas as pd
 from fetcher import fetch_yahoo_data
-from strategy1 import BollingerAttackReversalStrategy
+from strategy_attack_day import AttackReversalStrategy
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -27,7 +27,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 
         """ 
         cerebro.optstrategy(
-            BollingerAttackReversalStrategy,
+            AttackReversalStrategy,
             boll_period=[20],
             boll_devfactor=[2],
             lookback=[5],
@@ -39,7 +39,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         """
         cerebro.addstrategy(
-            BollingerAttackReversalStrategy,
+            AttackReversalStrategy,
             boll_period=20,
             boll_devfactor=2,
             lookback=5,
