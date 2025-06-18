@@ -2,32 +2,40 @@ import yfinance as yf
 import os
 import pandas as pd
 
-def fetch_yahoo_data(symbol, start="2020-01-01", end="2025-01-01", interval="1d", cache_dir="data"):
+def fetch_yahoo_data(symbols, start="2018-01-01", end="2025-06-01", interval="1d", cache_dir="data"):
     os.makedirs(cache_dir, exist_ok=True)
-    file_path = os.path.join(cache_dir, f"{symbol}_{interval}_{start}_{end}.csv")
+    if isinstance(symbols, str):
+        symbols = [symbols]
 
-    if os.path.exists(file_path):
-        print(f" Deleting old cache: {file_path}")
-        os.remove(file_path)
+    data_dict = {}
 
-    print(f"⬇️ Downloading data for {symbol} via yfinance")
-    df = yf.download(
-        symbol,
-        start=start,
-        end=end,
-        interval=interval,
-        progress=False,
-        auto_adjust=False,
-        group_by='ticker' 
-    )
+    for symbol in symbols:
+        file_path = os.path.join(cache_dir, f"{symbol}_{interval}_{start}_{end}.csv")
 
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.droplevel(0)  # second tier of column ['Open', 'High', ...]
+        if os.path.exists(file_path):
+            df = pd.read_csv(file_path, index_col="Date", parse_dates=True)
+        else:
+            print(f"⬇️ Downloading data for {symbol} via yfinance")
+            df = yf.download(
+                symbol,
+                start=start,
+                end=end,
+                interval=interval,
+                progress=False,
+                auto_adjust=False,
+                group_by='ticker'
+            )
 
-    df.columns.name = None
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.droplevel(0)
+            df.columns.name = None
 
-    if df.empty:
-        raise ValueError(f"No data found for {symbol}.")
+            if df.empty:
+                print(f"⚠️ No data found for {symbol}")
+                continue
 
-    df.to_csv(file_path, index_label="Date")
-    return df
+            df.to_csv(file_path, index_label="Date")
+
+        data_dict[symbol] = df
+
+    return data_dict
