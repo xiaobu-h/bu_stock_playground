@@ -1,4 +1,5 @@
 import backtrader as bt
+import logging 
 
 class AttackReversalSignalScan(bt.Strategy):
     params = (
@@ -21,17 +22,14 @@ class AttackReversalSignalScan(bt.Strategy):
             self.data.close[-2] < self.data.close[-5] and
             (self.data.close[-5] - self.data.close[-1]) / self.data.close[-1] > 0.12
         ):
-            print(self.data.close[-1] , self.data.close[-2], self.data.close[-3], self.data.close[-4], self.data.close[-5])
-            print(f"[{date}] ❌ 不满足连续下跌")
             return False
 
         if self.data.close[0] <= self.data.open[0]:
-            
-            print(f"[{date}] ❌ 今日不是阳线")
+            logging.info(f"[{date}] [1] Today is not a bullish day.")
             return False
 
         if self.data.volume[0] <= self.vol_sma5[0] * self.p.volume_multiplier:
-            print(f"[{date}] ❌ 成交量不足")
+            logging.info(f"[{date}] [2] Volume is not sufficiently high.")
             return False
 
         return True

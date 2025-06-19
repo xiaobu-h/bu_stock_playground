@@ -1,10 +1,18 @@
 import backtrader as bt
 import pandas as pd
 import yfinance as yf
+import logging
 
 from telegram_bot import send_telegram_message 
 from strategy_attack_day_scan import AttackReversalSignalScan  # 你定义的轻量策略
 
+# 配置日志
+logging.basicConfig(
+    filename='monitor.log',
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 def fetch_recent_data(symbol, lookback_days=10):
     try:
@@ -13,7 +21,7 @@ def fetch_recent_data(symbol, lookback_days=10):
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
 
         if df.empty:
-            print(f"No data for {symbol}")
+            logging.warning(f"No data for {symbol}")
             return None
 
         # ✅ 修复 MultiIndex 列名问题
@@ -24,14 +32,14 @@ def fetch_recent_data(symbol, lookback_days=10):
 
         required_columns = ["Open", "High", "Low", "Close", "Volume"]
         if not set(required_columns).issubset(df.columns):
-            print(f"Missing columns in {symbol}: {df.columns.tolist()}")
+            logging.warning(f"Missing columns in {symbol}: {df.columns.tolist()}")
             return None
 
         df = df[required_columns]
         df.dropna(inplace=True)
         return df
     except Exception as e:
-        print(f"Error fetching data for {symbol}: {e}")
+        logging.warning(f"Error fetching data for {symbol}: {e}")
         return None
     
 class CustomPandasData(bt.feeds.PandasData):
@@ -66,15 +74,16 @@ def main():
 
     for symbol in symbols:
         print(f"Scanning {symbol}...")
+        logging.info(f"Scanning {symbol}...")
         if scan_stock(symbol):
             alerted.append(symbol)
-            print(f"✅ Buy Signal: {symbol}")
+            logging.info(f"✅ Buy Signal: {symbol}")
 
     if alerted:
         message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
         send_telegram_message(f"[Stock Alert]\n{message}")
     else:
-        print("No buy signals today.")
+        logging.info("No buy signals today.")
         send_telegram_message(f"No attack reversal signals today.")
 
 if __name__ == "__main__":
