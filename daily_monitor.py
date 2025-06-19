@@ -8,21 +8,49 @@ from strategy_attack_day_scan import AttackReversalSignalScan  # 你定义的轻
 
 def fetch_recent_data(symbol, lookback_days=10):
     try:
-        df = yf.download(symbol, period=f"{lookback_days}d", interval="1d", progress=False, auto_adjust=False, group_by='ticker')
-  
+        end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
+        start_date = end_date - pd.Timedelta(days=lookback_days + 5)  # 多加载5天以初始化指标
+        df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
+
         if df.empty:
+            print(f"No data for {symbol}")
             return None
-        df.columns = [str(col).capitalize() for col in df.columns]  # 标准化列名
+
+        # ✅ 修复 MultiIndex 列名问题
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0].capitalize() for col in df.columns]
+        else:
+            df.columns = [col.capitalize() for col in df.columns]
+
+        required_columns = ["Open", "High", "Low", "Close", "Volume"]
+        if not set(required_columns).issubset(df.columns):
+            print(f"Missing columns in {symbol}: {df.columns.tolist()}")
+            return None
+
+        df = df[required_columns]
         df.dropna(inplace=True)
         return df
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
         return None
+    
+class CustomPandasData(bt.feeds.PandasData):
+    params = (
+        ('datetime', None),
+        ('open', 'Open'),
+        ('high', 'High'),
+        ('low', 'Low'),
+        ('close', 'Close'),
+        ('volume', 'Volume'),
+        ('openinterest', -1),
+    )
 
 def scan_stock(symbol):
     df = fetch_recent_data(symbol)
+    if df is None:
+        return False
 
-    data = bt.feeds.PandasData(dataname=df)
+    data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     cerebro.addstrategy(AttackReversalSignalScan, symbol=symbol)
@@ -36,7 +64,8 @@ def main():
 
     alerted = []
 
-    for symbol in symbols[:10]:
+    for symbol in symbols:
+        print(f"Scanning {symbol}...")
         if scan_stock(symbol):
             alerted.append(symbol)
             print(f"✅ Buy Signal: {symbol}")
