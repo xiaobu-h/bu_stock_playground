@@ -3,17 +3,22 @@ import pandas as pd
 import yfinance as yf
 import logging
 
+from get_symbols import FINAL_SYMBOLS  
+from datetime import datetime
 from telegram_bot import send_telegram_message 
 from strategy.attack_day.scan import AttackReversalSignalScan  # 你定义的轻量策略
 
-# 配置日志
+# logging
+log_filename = datetime.now().strftime("monitor_%Y-%m-%d.log")
 logging.basicConfig(
-    filename=f'monitor-{pd.Timestamp.today()}.log',
+    filename=log_filename,
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+
+# fetcher
 def fetch_recent_data(symbol, lookback_days=10):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
@@ -53,6 +58,8 @@ class CustomPandasData(bt.feeds.PandasData):
         ('openinterest', -1),
     )
 
+
+# call scanner 
 def scan_stock(symbol):
     df = fetch_recent_data(symbol)
     if df is None:
@@ -66,12 +73,8 @@ def scan_stock(symbol):
     return results[0].signal_today
 
 def main():
-    sp500_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    tables = pd.read_html(sp500_url)
-    symbols = tables[0]["Symbol"].str.replace(".", "-", regex=False).tolist()
-
+    symbols = FINAL_SYMBOLS
     alerted = []
-
     for symbol in symbols:
         print(f"Scanning {symbol}...")
         logging.info(f"Scanning {symbol}...")
