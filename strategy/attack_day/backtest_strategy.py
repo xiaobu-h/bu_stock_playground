@@ -10,6 +10,7 @@ class AttackReversalStrategy(bt.Strategy):
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
         ('trailing_stop_pct', 0.05),  # 跟踪止损百分比（5%）
+        ('down_pct', 0.12),  # 下跌百分比（12%）
     )
 
     def __init__(self):
@@ -26,13 +27,21 @@ class AttackReversalStrategy(bt.Strategy):
         if not (
             self.data.close[-1] < self.data.close[-2] and
             self.data.close[-1] < self.data.open[-1] and
-            self.data.close[-2] < self.data.close[-3] and
-            self.data.close[-2] < self.data.close[-4] and
-            self.data.close[-2] < self.data.close[-5] and
-            (self.data.close[-5] - self.data.close[-1]) / self.data.close[-1] > 0.12 # 5天有 12% 以上跌幅
+            self.data.close[-1] < self.data.close[-3] and
+            self.data.close[-1] < self.data.close[-4] and
+            self.data.close[-1] < self.data.close[-5] 
         ):
             return False
 
+
+        if  ( 
+                (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct and
+                (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct 
+     ):
+            #print(f"[{date}] [0] not down 12% ")
+            return False
+         
+         
         # 条件2：今日阳线
         if self.data.close[0] <= self.data.open[0]:
             return False
@@ -79,8 +88,8 @@ class AttackReversalStrategy(bt.Strategy):
             # 跟踪止损: 当最高价已经上涨超过买入价的设定百分比后，若价格回落超过该百分比则止损
             #elif ( self.high_watermark >= self.buy_price * (1 + self.p.trailing_stop_pct) and current_price <= self.high_watermark * (1 - self.p.trailing_stop_pct)):
             #    self.close()
-             #   self.buy_price = None
-             #   self.high_watermark = None
+            #    self.buy_price = None
+            #    self.high_watermark = None
 
     def stop(self):
         if self.p.printlog:

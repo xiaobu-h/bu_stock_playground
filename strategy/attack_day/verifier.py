@@ -1,7 +1,7 @@
 import backtrader as bt
 import yfinance as yf
 import pandas as pd
-from strategy_attack_day_scan import AttackReversalSignalScan
+from scan import AttackReversalSignalScan
 
 class DebugAttackReversalScan(AttackReversalSignalScan):
     params = (("symbol", "Symbol"),)
@@ -66,4 +66,4 @@ def test_strategy_on_date(symbol, start_date, end_date):
 
 if __name__ == "__main__":
     
-    test_strategy_on_date("MSTR", "2025-02-20", "2025-04-16")
+    test_strategy_on_date("ADBE", "2025-04-20", "2025-06-19")

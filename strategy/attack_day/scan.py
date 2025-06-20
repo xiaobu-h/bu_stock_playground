@@ -4,7 +4,7 @@ import logging
 class AttackReversalSignalScan(bt.Strategy):
     params = (
         ('lookback', 5),
-        ('volume_multiplier', 1.2),
+        ('volume_multiplier', 1.38),
         ('symbol', 'UNKNOWN'),
     )
 
@@ -17,14 +17,22 @@ class AttackReversalSignalScan(bt.Strategy):
         if not (
             self.data.close[-1] < self.data.close[-2] and
             self.data.close[-1] < self.data.open[-1] and
-            self.data.close[-2] < self.data.close[-3] and
-            self.data.close[-2] < self.data.close[-4] and
-            self.data.close[-2] < self.data.close[-5] and
-            (self.data.close[-5] - self.data.close[-1]) / self.data.close[-1] > 0.12
+            self.data.close[-1] < self.data.close[-3] and
+            self.data.close[-1] < self.data.close[-4] and
+            self.data.close[-1] < self.data.close[-5] 
+           
         ):
+            #print(f"[{date}] [-1] not down down down!")
             return False
 
+        if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < 0.10 and (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < 0.10 ):
+            #print(f"[{date}] [0] not down 10% ")
+            logging.info(f"[{date}] [0] not down 10% ")
+            return False
+         
+        
         if self.data.close[0] <= self.data.open[0]:
+            #print(f"[{date}] [1] Today is not a bullish day.")
             logging.info(f"[{date}] [1] Today is not a bullish day.")
             return False
 

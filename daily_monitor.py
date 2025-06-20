@@ -4,11 +4,11 @@ import yfinance as yf
 import logging
 
 from telegram_bot import send_telegram_message 
-from strategy_attack_day_scan import AttackReversalSignalScan  # 你定义的轻量策略
+from strategy.attack_day.scan import AttackReversalSignalScan  # 你定义的轻量策略
 
 # 配置日志
 logging.basicConfig(
-    filename='monitor.log',
+    filename=f'monitor-{pd.Timestamp.today()}.log',
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
