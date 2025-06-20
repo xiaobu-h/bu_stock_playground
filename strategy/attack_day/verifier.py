@@ -12,8 +12,7 @@ class DebugAttackReversalScan(AttackReversalSignalScan):
 
     def next(self):
         date = self.data.datetime.date(0)
-
-        # 调试：打印关键指标值
+        # verifier debug
         print(f"[{date}] close[0]={self.data.close[0]:.2f}, close[-1]={self.data.close[-1]}, volume={self.data.volume[0]}, vol_sma5={self.vol_sma5[0]}")
 
         if not self.position and self.is_attack_setup():
@@ -22,7 +21,6 @@ class DebugAttackReversalScan(AttackReversalSignalScan):
         super().next()
 
 class CustomPandasData(bt.feeds.PandasData):
-   #  lines = ('symbol',)
     params = (
         ('datetime', None),
         ('open', 'Open'),
@@ -34,12 +32,11 @@ class CustomPandasData(bt.feeds.PandasData):
     )
 
 def fetch_data_by_date(symbol, start_date, end_date):
-    load_start = pd.to_datetime(start_date) - pd.Timedelta(days=30)  # 多加载30天以初始化指标
+    load_start = pd.to_datetime(start_date) - pd.Timedelta(days=30)   
     df = yf.download(symbol, start=load_start.strftime("%Y-%m-%d"), end=end_date, interval="1d", auto_adjust=False)
     if df.empty:
         raise ValueError(f"No data for {symbol} from {start_date} to {end_date}")
-
-    # ✅ 修复 MultiIndex 列名问题
+ 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = [col[0].capitalize() for col in df.columns]
     else:

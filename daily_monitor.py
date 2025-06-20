@@ -6,7 +6,7 @@ import logging
 from get_symbols import FINAL_SYMBOLS  
 from datetime import datetime
 from telegram_bot import send_telegram_message 
-from strategy.attack_day.scan import AttackReversalSignalScan  # 你定义的轻量策略
+from strategy.attack_day.scan import AttackReversalSignalScan  
 
 # logging
 log_filename = datetime.now().strftime("monitor_%Y-%m-%d.log")
@@ -22,14 +22,13 @@ logging.basicConfig(
 def fetch_recent_data(symbol, lookback_days=10):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=lookback_days + 5)  # 多加载5天以初始化指标
+        start_date = end_date - pd.Timedelta(days=lookback_days + 5)  # load extra data to ensure we have enough for the strategy
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
 
         if df.empty:
             logging.warning(f"No data for {symbol}")
             return None
 
-        # ✅ 修复 MultiIndex 列名问题
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [col[0].capitalize() for col in df.columns]
         else:

@@ -34,11 +34,12 @@ class AttackReversalStrategy(bt.Strategy):
             return False
 
 
+        # 条件1：过去 5 / 6 天 已经下跌超过10%
         if  ( 
                 (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct and
                 (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct 
      ):
-            #print(f"[{date}] [0] not down 12% ")
+            #print(f"[{date}] [0] not down 10% ")
             return False
          
          
@@ -79,11 +80,15 @@ class AttackReversalStrategy(bt.Strategy):
                 self.buy_price = None
                 self.stop_loss_price = None
                 
+                
+            # ❌【BAD】【BAD】【BAD】 根据backtest， 跌破买入价不如买入日最底下效果好
+            
             # 止损：跌破买入价
             #elif current_price < self.buy_price * 0.98:
             #    self.close()
             #    self.buy_price = None
             
+            # ❌【BAD】【BAD】【BAD】 根据backtest， 跟踪止损不好 
 
             # 跟踪止损: 当最高价已经上涨超过买入价的设定百分比后，若价格回落超过该百分比则止损
             #elif ( self.high_watermark >= self.buy_price * (1 + self.p.trailing_stop_pct) and current_price <= self.high_watermark * (1 - self.p.trailing_stop_pct)):

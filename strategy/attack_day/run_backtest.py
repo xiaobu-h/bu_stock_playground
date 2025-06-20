@@ -24,7 +24,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro = bt.Cerebro()
         data = PandasData(dataname=df)
         cerebro.adddata(data)
-        cerebro.broker.set_coc(True) # 设置为True以启用当日成交
+        cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         """ 
         cerebro.optstrategy(
@@ -55,6 +55,9 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_cash(10000)
         cerebro.run()
         cerebro.plot()
+
+
+# manually run the backtest
 
 if __name__ == "__main__":
     #run(["ADBE"])
