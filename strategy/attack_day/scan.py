@@ -3,13 +3,14 @@ import logging
 
 class AttackReversalSignalScan(bt.Strategy):
     params = (
-        ('lookback', 5),
+        ('lookback_days', 5),
         ('volume_multiplier', 1.38),
         ('symbol', 'UNKNOWN'),
+        ('only_scan_last_day', True),
     )
 
     def __init__(self):
-        self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback)
+        self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback_days)
         self.signal_today = False
 
     def is_attack_setup(self):
@@ -43,5 +44,7 @@ class AttackReversalSignalScan(bt.Strategy):
         return True
 
     def next(self):
+        if self.p.only_scan_last_day and self.data.datetime.date(0) != self.data.datetime.date(-1):
+            return 
         if self.is_attack_setup():
             self.signal_today = True

@@ -52,7 +52,7 @@ def test_strategy_on_date(symbol, start_date, end_date):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(DebugAttackReversalScan, symbol=symbol)
+    cerebro.addstrategy(DebugAttackReversalScan, symbol=symbol, only_scan_last_day=False)
     result = cerebro.run()
     strat = result[0]
 

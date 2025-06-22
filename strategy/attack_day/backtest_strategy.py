@@ -4,7 +4,7 @@ class AttackReversalStrategy(bt.Strategy):
     params = (
         ('boll_period', 20),
         ('boll_devfactor', 2),
-        ('lookback', 5),        # 连续阴线数量
+        ('lookback_days', 5),        # 连续阴线数量
         ('volume_multiplier', 1.5),  # 放量倍数
         ('take_profit', 1.10),  # 止盈目标（10%）
         ('printlog', False),
@@ -16,7 +16,7 @@ class AttackReversalStrategy(bt.Strategy):
     def __init__(self):
         self.bb = bt.indicators.BollingerBands(
             self.data.close, period=self.p.boll_period, devfactor=self.p.boll_devfactor)
-        self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback)
+        self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback_days)
         self.kdj = bt.ind.Stochastic(
             self.data, period=9, period_dfast=3, period_dslow=3
         )

@@ -2,7 +2,7 @@
 import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
-from backtest_strategy import AttackReversalStrategy
+from strategy.bl_jump_lower_open.stratety import BollingerVolumeBreakoutStrategy
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -40,16 +40,13 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         """
         cerebro.addstrategy(
-            AttackReversalStrategy,
-            boll_period=20,
-            boll_devfactor=2,
-            lookback_days=5,
-            volume_multiplier=1.38,
-            take_profit=1.15,
+            BollingerVolumeBreakoutStrategy,
+            lookback_days=7,
+            volume_multiplier=2,
+            take_profit=1.10,
             printlog=True,
             symbol=symbol,
-            trailing_stop_pct=0.065,
-            down_pct=0.10
+            only_scan_last_day = False,
         )
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         cerebro.broker.set_cash(10000)
@@ -60,9 +57,9 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 # manually run the backtest
 
 if __name__ == "__main__":
-    #run(["ADBE"])
+    run(["AAPL"])
     #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  
-    run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  
+    #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  
     
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  
      #AAPL MSFT  GOOG  TSLA  NVDA  AMD  INTC  IBM  ORCL  CSCO AMZN  META  NFLX  PYPL  SQ  SHOP  BABA  TCEHY  V  MA
