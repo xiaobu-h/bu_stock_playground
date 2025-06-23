@@ -41,8 +41,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         """
         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
-            lookback_days=7,
-            volume_multiplier=2,
+            lookback_days=5,
+            volume_multiplier=1.5,
             take_profit=1.10,
             printlog=True,
             symbol=symbol,
@@ -57,8 +57,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 # manually run the backtest
 
 if __name__ == "__main__":
-    run(["AAPL"])
-    #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  
+    #run(["AAPL"])
+    run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  
     #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  
     
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  

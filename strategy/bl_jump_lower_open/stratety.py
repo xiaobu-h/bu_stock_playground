@@ -20,11 +20,20 @@ class BollingerVolumeBreakoutLogic:
             return False
         
         if close < open_:
-            print("Not a bullish candle.")
+            print(f"[{self.data.datetime.date(0)}]Not a bullish candle.")
+            return False
+        
+        if  abs(self.data.close[-1] - self.data.open[-1]) > abs(open_ - close) :
+            print(f"[{self.data.datetime.date(0)}]Candle is too small.")
+            return False
+        
+        if ( (self.data.close[-1]) - open_ )/ self.data.close[-1] > 0.5:
+            print (((self.data.close[-1]) - open_) / self.data.close[-1])
+            print(f"[{self.data.datetime.date(0)}]Too deep jump from yesterday.")
             return False
         
         if volume < avg_volume * self.volume_multiplier:
-            print("Volume is not a spike.")
+            print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
 
         return True
@@ -70,7 +79,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if self.buy_logic.check_buy_signal():
             if self.p.only_scan_last_day:
                 self.signal_today = True
-            else:
+            else: 
                 self.order = self.buy()
                 self.entry_price = self.data.close[0]
                 self.stop_price = self.data.low[0]
