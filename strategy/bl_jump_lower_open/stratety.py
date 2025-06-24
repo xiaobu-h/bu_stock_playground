@@ -32,6 +32,10 @@ class BollingerVolumeBreakoutLogic:
             print(f"[{self.data.datetime.date(0)}]Too deep jump from yesterday.")
             return False
         
+        if ((low_band - open_) / low_band) < 0.01:
+            print(f"[{self.data.datetime.date(0)}]Jump is too small.")
+            return False
+        
         if volume < avg_volume * self.volume_multiplier:
             print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False

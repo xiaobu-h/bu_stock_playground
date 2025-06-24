@@ -41,8 +41,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         """
         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
-            lookback_days=5,
-            volume_multiplier=1.5,
+            lookback_days=4,
+            volume_multiplier=1.6,
             take_profit=1.10,
             printlog=True,
             symbol=symbol,
@@ -50,6 +50,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         )
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         cerebro.broker.set_cash(10000)
+        cerebro.addsizer(bt.sizers.FixedSize, stake=10)   
         cerebro.run()
         cerebro.plot()
 
@@ -58,8 +59,11 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 
 if __name__ == "__main__":
     #run(["AAPL"])
-    run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  
-    #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  
+    run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
+    run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  #5:11    3:3
     
-    #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  
+    #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
      #AAPL MSFT  GOOG  TSLA  NVDA  AMD  INTC  IBM  ORCL  CSCO AMZN  META  NFLX  PYPL  SQ  SHOP  BABA  TCEHY  V  MA
+
+    #1.4 -  16:17         1.6 -  7:9
+    #run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
