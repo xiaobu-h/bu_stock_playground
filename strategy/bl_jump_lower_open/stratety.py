@@ -10,8 +10,7 @@ class BollingerVolumeBreakoutLogic:
         self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
         self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=self.lookback_days)
         
-    def check_buy_signal(self):
-        print(f"[{self.data.datetime.date(0)}] start")
+    def check_buy_signal(self): 
         if len(self.data) < self.lookback_days:
             return False
         open_ = self.data.open[0]
@@ -23,16 +22,16 @@ class BollingerVolumeBreakoutLogic:
             return False
         
         if close < open_:
-            print(f"[{self.data.datetime.date(0)}]Not a bullish candle.")
+            #print(f"[{self.data.datetime.date(0)}]Not a bullish candle.")
             return False
         
         
         if ((low_band - open_) / low_band) < 0.01:
-            print(f"[{self.data.datetime.date(0)}]Jump is too small.")
+            #print(f"[{self.data.datetime.date(0)}]Jump is too small.")
             return False
         
         if volume < avg_volume * self.volume_multiplier:
-            print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
+            #print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
        
 
