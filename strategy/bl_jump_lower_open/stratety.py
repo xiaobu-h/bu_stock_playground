@@ -1,4 +1,6 @@
 import backtrader as bt
+from datetime import datetime
+
 
 class BollingerVolumeBreakoutLogic:
     def __init__(self, data, lookback_days=10, volume_multiplier=2):
@@ -7,8 +9,9 @@ class BollingerVolumeBreakoutLogic:
         self.volume_multiplier = volume_multiplier
         self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
         self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=self.lookback_days)
-
+        
     def check_buy_signal(self):
+        print(f"[{self.data.datetime.date(0)}] start")
         if len(self.data) < self.lookback_days:
             return False
         open_ = self.data.open[0]
@@ -23,14 +26,6 @@ class BollingerVolumeBreakoutLogic:
             print(f"[{self.data.datetime.date(0)}]Not a bullish candle.")
             return False
         
-        if  abs(self.data.close[-1] - self.data.open[-1]) > abs(open_ - close) :
-            print(f"[{self.data.datetime.date(0)}]Candle is too small.")
-            return False
-        
-        if ( (self.data.close[-1]) - open_ )/ self.data.close[-1] > 0.5:
-            print (((self.data.close[-1]) - open_) / self.data.close[-1])
-            print(f"[{self.data.datetime.date(0)}]Too deep jump from yesterday.")
-            return False
         
         if ((low_band - open_) / low_band) < 0.01:
             print(f"[{self.data.datetime.date(0)}]Jump is too small.")
@@ -39,6 +34,7 @@ class BollingerVolumeBreakoutLogic:
         if volume < avg_volume * self.volume_multiplier:
             print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
+       
 
         return True
     
@@ -64,30 +60,35 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
 
     def next(self):
         if self.p.only_scan_last_day:
-            if len(self) < 2 or self.data.datetime.date(0) != self.data.datetime.date(-1):
-                return
-
-        if self.position:
+            if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
+               return
+           
+           
+        if  self.position:
             high = self.data.high[0]
             low = self.data.low[0]
             if high >= self.entry_price * (self.p.take_profit):
                 self.close()
-                print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {high:.2f} ≥ Target {(self.entry_price * 1.10):.2f}")
+                #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {high:.2f} ≥ Target {(self.entry_price * 1.10):.2f}")
                 
                 return
             if low < self.stop_price:
                 self.close()
-                print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {low:.2f} < Stop {self.stop_price:.2f}")
+                #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {low:.2f} < Stop {self.stop_price:.2f}")
                 return
 
         if self.buy_logic.check_buy_signal():
+            
             if self.p.only_scan_last_day:
                 self.signal_today = True
             else: 
-                self.order = self.buy()
-                self.entry_price = self.data.close[0]
-                self.stop_price = self.data.low[0]
+                size = int(10000 / self.data.close[0])
+                if size > 0:
+                    self.order = self.buy(size=size)
                 
+                    self.entry_price = self.data.close[0]
+                    self.stop_price = self.data.low[0]
+                    self.signal_today = True
     def stop(self):
         if self.p.printlog:
             try:

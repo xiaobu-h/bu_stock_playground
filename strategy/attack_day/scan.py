@@ -1,5 +1,6 @@
 import backtrader as bt
 import logging 
+from datetime import datetime
 
 class AttackReversalSignalScan(bt.Strategy):
     params = (
@@ -44,7 +45,7 @@ class AttackReversalSignalScan(bt.Strategy):
         return True
 
     def next(self):
-        if self.p.only_scan_last_day and self.data.datetime.date(0) != self.data.datetime.date(-1):
+        if self.p.only_scan_last_day and self.data.datetime.date(0) != datetime.today().date():
             return 
         if self.is_attack_setup():
             self.signal_today = True

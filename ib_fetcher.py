@@ -75,7 +75,7 @@ def scan_stock(symbol):
 def main():
     symbols = [
         'AAPL', 'MSFT', 'NVDA', 'META', 'AMZN', 'GOOGL', 'TSLA', 'NFLX', 'AMD', 'INTC'
-    ]  # 可替换为你的常用 symbol 列表
+    ]  
 
     alerted = []
 
