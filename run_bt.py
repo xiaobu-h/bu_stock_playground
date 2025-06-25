@@ -3,7 +3,8 @@ import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
 from strategy.bl_jump_lower_open.stratety import BollingerVolumeBreakoutStrategy
-from get_symbols import FINAL_SYMBOLS , NASDAQ100
+from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS 
+from collections import defaultdict
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -29,6 +30,8 @@ summary = {
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     df_dict = fetch_yahoo_data(symbols)
+    from collections import Counter
+    position_counter = Counter()
     
     for symbol, df in df_dict.items():
         df = df[["Open", "High", "Low", "Close", "Volume"]]
@@ -61,6 +64,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             only_scan_last_day = False,
         )
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
+        cerebro.addanalyzer(TrackPositions, _name='pos_tracker')
         cerebro.broker.set_cash(50000)
         
         results = cerebro.run()
@@ -72,8 +76,19 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         summary['pnl_net'] += analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
         summary['pnl_won'] += analysis.get('won', {}).get('pnl', {}).get('total', 0.0)
         summary['pnl_lost'] += analysis.get('lost', {}).get('pnl', {}).get('total', 0.0)
+        daily_positions = results[0].analyzers.pos_tracker.get_analysis()
+        for date, count in daily_positions.items():
+            position_counter[date] += count
+       
+       
+    print_daily_positions(position_counter)
         #cerebro.plot()
 
+
+def print_daily_positions( position_counter):
+    print("\nDaily Open Positions:")
+    for date, count in sorted(position_counter.items()):
+        print(f"{date} - {count}")
 
 def print_summary():
     total = summary['total_trades']
@@ -90,7 +105,18 @@ def print_summary():
         f"  Total Win PnL: {pnl_won:.2f} | Total Loss PnL: {pnl_lost:.2f} | Net PnL: {pnl_net:.2f}"
     )
 
+class TrackPositions(bt.Analyzer):
+    def __init__(self):
+        self.daily_positions = defaultdict(int)
 
+    def next(self):
+        date = self.strategy.data.datetime.date(0)
+        position = self.strategy.getposition().size
+        if position > 0:
+            self.daily_positions[date] += 1
+
+    def get_analysis(self):
+        return self.daily_positions
 
 # manually run the backtest
 
@@ -102,5 +128,5 @@ if __name__ == "__main__":
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
     
     #run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
-    run(FINAL_SYMBOLS) 
+    run(NASDAQ100) 
     print_summary()
