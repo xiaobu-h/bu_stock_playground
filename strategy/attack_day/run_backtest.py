@@ -52,7 +52,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             down_pct=0.10
         )
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
-        cerebro.broker.set_cash(10000)
+        cerebro.broker.set_cash(5000)
         cerebro.run()
         cerebro.plot()
 

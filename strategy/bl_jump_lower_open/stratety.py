@@ -81,7 +81,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             if self.p.only_scan_last_day:
                 self.signal_today = True
             else: 
-                size = int(10000 / self.data.close[0])
+                size = int(5000 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
                 
