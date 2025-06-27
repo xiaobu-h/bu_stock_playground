@@ -3,6 +3,7 @@ import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
 from strategy.bl_jump_lower_open.stratety import BollingerVolumeBreakoutStrategy
+from strategy.bl_new_high_w_volumn.stratety import BollingerNewHighWithVolumeBreakoutStrategy
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS 
 from collections import defaultdict
 
@@ -53,7 +54,6 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             symbol=symbol
         )
         
-        """
         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             lookback_days=8,
@@ -63,8 +63,22 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             symbol=symbol,
             only_scan_last_day = False,
         )
+        """
+        cerebro.addstrategy(
+            BollingerNewHighWithVolumeBreakoutStrategy,
+            lookback_days=3,
+            volume_multiplier=1.6,
+            volume_max=3,
+            min_increse_percent=0.035,
+            take_profit=1.05,
+            printlog=False,
+            symbol=symbol,
+            only_scan_last_day = False,
+        )
+        
+        
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
-        cerebro.addanalyzer(TrackPositions, _name='pos_tracker')
+        #cerebro.addanalyzer(TrackPositions, _name='pos_tracker')
         cerebro.broker.set_cash(50000)
         
         results = cerebro.run()
@@ -76,9 +90,10 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         summary['pnl_net'] += analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
         summary['pnl_won'] += analysis.get('won', {}).get('pnl', {}).get('total', 0.0)
         summary['pnl_lost'] += analysis.get('lost', {}).get('pnl', {}).get('total', 0.0)
-        daily_positions = results[0].analyzers.pos_tracker.get_analysis()
-        for date, count in daily_positions.items():
-            position_counter[date] += count
+       
+       # daily_positions = results[0].analyzers.pos_tracker.get_analysis()
+        #for date, count in daily_positions.items():
+        #    position_counter[date] += count
        
        
     print_daily_positions(position_counter)
@@ -127,6 +142,6 @@ if __name__ == "__main__":
     
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
     
-    #run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
-    run(NASDAQ100) 
+    run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
+    #run(NASDAQ100) 
     print_summary()
