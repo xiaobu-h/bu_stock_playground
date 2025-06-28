@@ -68,7 +68,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=False)
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=True)
     results = cerebro.run()
     return results[0].signal_today
 
@@ -76,18 +76,21 @@ def main():
     symbols = FINAL_SYMBOLS
     alerted = []
     
-    #for symbol in symbols: 
-     #   logging.info(f"Scanning {symbol}...")
-     #   if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
-    #        alerted.append(symbol)
-    #        logging.info(f"✅ Buy Signal: {symbol}")
+    for symbol in symbols: 
+       logging.info(f"Scanning {symbol}...")
+       if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
+            alerted.append(symbol)
+            logging.info(f"✅ Buy Signal: {symbol}")
 
-   # if alerted:
-    #    message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
-    #    send_telegram_message(f"[Stock Alert - Bollinger Strategy]\n{message}")
-    #else:
-    #    logging.info("No buy signals today.")
-    #    send_telegram_message(f"[Stock Alert - Bollinger Low Jump Strategy] No signals today.")
+    if alerted:
+        message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
+        send_telegram_message(f"[Stock Alert - Bollinger Strategy]\n{message}")
+    else:
+        logging.info("No buy signals today.")
+        send_telegram_message(f"[Stock Alert - Bollinger Low Jump Strategy] No signals today.")
+        
+        
+        
     alerted = []  
     for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
