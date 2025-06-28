@@ -67,7 +67,7 @@ def scan_stock(symbol):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(AttackReversalSignalScan, symbol=symbol , only_scan_last_day=False)
+    cerebro.addstrategy(AttackReversalSignalScan, symbol=symbol , only_scan_last_day=True)
     results = cerebro.run()
     return results[0].signal_today
 

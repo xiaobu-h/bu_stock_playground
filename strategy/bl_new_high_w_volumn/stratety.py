@@ -32,9 +32,13 @@ class BollingerNewHighWithVolumeBreakoutLogic:
             #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
             return False
         
-        if (abs(high_band - close) / high_band) < 0.01:
+        if (abs(high_band - close) / high_band) < 0.015:
             #print(f"[{self.data.datetime.date(0)}]Jump is too small.")
             return False
+        
+        #if (self.data.high[0] - close ) / close > 0.03:
+            #print(f"[{self.data.datetime.date(0)}]Upper wick is too long.")
+         #   return False
         
         if volume < avg_volume * self.volume_multiplier:
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
@@ -77,18 +81,20 @@ class BollingerNewHighWithVolumeBreakoutStrategy(bt.Strategy):
            
            
         if  self.position:
+           # self.close()
+                
+             
             high = self.data.high[0]
             low = self.data.low[0]
-            if high >= self.entry_price * (self.p.take_profit):
+            if high >= self.entry_price * self.p.take_profit:
                 self.close()
-                #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {high:.2f} ≥ Target {(self.entry_price * 1.10):.2f}")
+                #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {high:.2f} ≥ Target {(self.entry_price * self.p.take_profit):.2f}")
                 
                 return
             if low < self.stop_price:
-                self.close()
                 #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {low:.2f} < Stop {self.stop_price:.2f}")
-                return
-
+                self.close()
+ 
         if self.buy_logic.check_buy_signal():
             
             if self.p.only_scan_last_day:
@@ -97,9 +103,9 @@ class BollingerNewHighWithVolumeBreakoutStrategy(bt.Strategy):
                 size = int(5000 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
-                
+                    print(f"[{self.data.datetime.date(0)}]")
                     self.entry_price = self.data.close[0]
-                    self.stop_price = self.data.low[0]
+                    self.stop_price = self.data.low[0] 
                     self.signal_today = True
     def stop(self):
         if self.p.printlog:

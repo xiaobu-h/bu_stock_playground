@@ -7,6 +7,7 @@ from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
 from strategy.bl_jump_lower_open.stratety import BollingerVolumeBreakoutStrategy  
+from strategy.bl_new_high_w_volumn.stratety import BollingerNewHighWithVolumeBreakoutStrategy
 
 # logging
 log_filename = datetime.now().strftime("bl_jump_monitor_%Y-%m-%d.log")
@@ -59,7 +60,7 @@ class CustomPandasData(bt.feeds.PandasData):
 
 
 # call scanner 
-def scan_stock(symbol):
+def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     df = fetch_recent_data(symbol)
     if df is None:
         return False
@@ -67,26 +68,39 @@ def scan_stock(symbol):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(BollingerVolumeBreakoutStrategy, symbol=symbol , only_scan_last_day=False)
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=False)
     results = cerebro.run()
     return results[0].signal_today
 
 def main():
     symbols = FINAL_SYMBOLS
     alerted = []
-    for symbol in symbols:
-        print(f"Scanning {symbol}...")
+    
+    #for symbol in symbols: 
+     #   logging.info(f"Scanning {symbol}...")
+     #   if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
+    #        alerted.append(symbol)
+    #        logging.info(f"✅ Buy Signal: {symbol}")
+
+   # if alerted:
+    #    message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
+    #    send_telegram_message(f"[Stock Alert - Bollinger Strategy]\n{message}")
+    #else:
+    #    logging.info("No buy signals today.")
+    #    send_telegram_message(f"[Stock Alert - Bollinger Low Jump Strategy] No signals today.")
+    alerted = []  
+    for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
-        if scan_stock(symbol):
+        if scan_stock(symbol,BollingerNewHighWithVolumeBreakoutStrategy):
             alerted.append(symbol)
             logging.info(f"✅ Buy Signal: {symbol}")
 
     if alerted:
         message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
-        send_telegram_message(f"[Stock Alert - Bollinger Strategy]\n{message}")
+        send_telegram_message(f"[Stock Alert - Bollinger New High Strategy]\n{message}")
     else:
         logging.info("No buy signals today.")
-        send_telegram_message(f"No Bollinger Jump signals today.")
+        send_telegram_message(f"[Stock Alert - Bollinger New High Strategy] No signals today.")
 
 if __name__ == "__main__":
     main()
