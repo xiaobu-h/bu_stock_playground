@@ -102,15 +102,17 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
                     self.signal_today = True
     def stop(self):
         #print("📈 每日 balance 变化：")
-        total = 0
-        for date in sorted(self.balance_by_date):
-            change = self.balance_by_date[date]
-            total += change
-            #print(f"{date}: {change:+.2f}")
-        print(f"💰 总收益变化: {total:+.2f}")
+        
         
         if self.p.printlog:
             try:
+                total = 0
+                for date in sorted(self.balance_by_date):
+                    change = self.balance_by_date[date]
+                    total += change
+                    #print(f"{date}: {change:+.2f}")
+                print(f"💰 总收益变化: {total:+.2f}")
+                
                 analysis = self.analyzers.trades.get_analysis()
                 total = analysis.get('total', {}).get('total', 0)
                 won = analysis.get('won', {}).get('total', 0)

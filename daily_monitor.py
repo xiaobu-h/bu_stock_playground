@@ -83,10 +83,10 @@ def main():
 
     if alerted:
         message = "\n".join([f"📈 Buy Signal Detected: {sym}" for sym in alerted])
-        send_telegram_message(f"[Stock Alert]\n{message}")
+        send_telegram_message(f"[Stock Alert - Attack Day]\n{message}")
     else:
         logging.info("No buy signals today.")
-        send_telegram_message(f"No attack reversal signals today.")
+        send_telegram_message(f"[Attack Day] No signals today.")
 
 if __name__ == "__main__":
     main()
