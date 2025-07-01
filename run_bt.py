@@ -2,8 +2,9 @@
 import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
-from strategy.bl_jump_lower_open.stratety import BollingerVolumeBreakoutStrategy
-from strategy.bl_new_high_w_volumn.stratety import BollingerNewHighWithVolumeBreakoutStrategy
+from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
+from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
+from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS 
 from collections import defaultdict
 
@@ -56,6 +57,16 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
            
         
         
+        cerebro.addstrategy(
+            BollingerVolumeBreakoutStrategy,
+            lookback_days=8,
+            volume_multiplier=1.25,
+            take_profit=1.13,
+            printlog=False,
+            symbol=symbol,
+            only_scan_last_day = False,
+        )
+        
         
         cerebro.addstrategy(
             BollingerNewHighWithVolumeBreakoutStrategy,
@@ -71,10 +82,11 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         """
      
         cerebro.addstrategy(
-            BollingerVolumeBreakoutStrategy,
-            lookback_days=8,
-            volume_multiplier=1.25,
-            take_profit=1.13,
+            BreakoutVolumeStrategy,
+            lookback_days=12,
+            volume_multiplier=1.7,
+            take_profit=1.05,
+            min_total_increse_percent=0.03,
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
@@ -147,8 +159,8 @@ class TrackPositions(bt.Analyzer):
 # manually run the backtest
 
 if __name__ == "__main__":
-    run(FINAL_SYMBOLS)
-    #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
+    run(NASDAQ100)
+   # run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
     #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  #5:11    3:3
     
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
