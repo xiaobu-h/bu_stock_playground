@@ -72,7 +72,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=False)
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=True)
     results = cerebro.run()
     return results[0].signal_today
 
@@ -83,24 +83,26 @@ def main():
     
     for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
+        
+        """
         if scan_stock(symbol,AttackReversalSignalScan):
             alert = True
             logging.info(f"✅ Buy Signal [Attack Day]: {symbol}")
             msg = f"📈 Buy Signal [Attack Day]: {symbol}"
             messages.append(msg) 
-        
+         """
         if scan_stock(symbol,BreakoutVolumeStrategy):
             alert = True
             logging.info(f"✅ Buy Signal [Breakout Volume]: {symbol}") 
             msg = f"📈 Buy Signal [Breakout Volume]: {symbol}"
             messages.append(msg) 
-            
+        """
         if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
             alert = True
             logging.info(f"✅ Buy Signal [Bollinger Low Jump]: {symbol}")
             msg = f"📈 Buy Signal [[Bollinger Low Jump]: {symbol}"
             messages.append(msg)
-            
+             """
         """ 等待调优
         if scan_stock(symbol, BollingerNewHighWithVolumeBreakoutStrategy):
             alert = True
