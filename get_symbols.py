@@ -18,7 +18,8 @@ TEST_SYMBOLS = [
 ADDITIONAL_SYMBOLS = ['HOOD', 'CLCR'
 ]
 
-DIVIDEN_SYMBOLS = ["XOM", "CVX",  "KO", "JNJ", "IBM", "PRU"  , "PNC"  , "ENB" , "ET" , "GILD" ]
+DIVIDEN_SYMBOLS =  ["XOM", "CVX",  "SO" , "JNJ",  "TGT", "IBM", "PRU" ,
+                    "PNC"  , "ENB" , "ET" ,  "JPM" , "PG" ,   "SBUX" ]
 
 
 FINAL_SYMBOLS = COMMON_SYMBOLS + ADDITIONAL_SYMBOLS

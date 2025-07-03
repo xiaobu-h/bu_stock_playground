@@ -2,13 +2,21 @@ import yfinance as yf
 import pandas as pd
 from get_symbols import DIVIDEN_SYMBOLS
 
+
+
+# back test param
+# 5000 USD per trade
+
+x_days = 8  # buy 8 days before the dividend date
+start_date = "2025-01-01"  # start date for the backtest 
+
 all_records = []
 total = 0
 for symbol in DIVIDEN_SYMBOLS:
     ticker = yf.Ticker(symbol)
     try:
         div_dates = ticker.dividends.index
-        hist = ticker.history(start="2024-01-01")
+        hist = ticker.history(start=start_date)
     except Exception as e:
         print(f"{symbol} 数据加载失败: {e}")
         continue
@@ -23,19 +31,21 @@ for symbol in DIVIDEN_SYMBOLS:
         try:
             idx = hist.index.get_loc(date)
             if idx >= 9:
-                buy_date = hist.index[idx - 8].date()
+                buy_date = hist.index[idx - x_days].date()
                 sell_date = hist.index[idx -1 ].date()
-                buy_price = hist.iloc[idx - 8]["Close"]
+                buy_price = hist.iloc[idx - x_days]["Close"]
+                
+                number = 5000 / buy_price
                 sell_price = hist.iloc[idx -1 ]["Close"]
-                pct_change = (sell_price - buy_price) / buy_price * 100
-                total += pct_change
+                change = (sell_price *  number) - (buy_price * number)
+                total += change
                 all_records.append({
                     "Symbol": symbol,
                     "Buy_Date": buy_date,
                     "Sell_Date": sell_date,
-                    "Buy_Price": round(buy_price, 2),
+                    "Buy_Price": round(buy_price, 2), 
                     "Sell_Price": round(sell_price, 2),
-                    "Return (%)": round(pct_change, 2)
+                    "Return ": round(change, 2)
                 })
         except Exception as e:
             print(f"{symbol} 单次记录失败: {e}")
@@ -45,4 +55,4 @@ for symbol in DIVIDEN_SYMBOLS:
 df = pd.DataFrame(all_records)
 df = df.sort_values(by=["Symbol", "Buy_Date"])
 df.to_csv("dividend_returns.csv", index=False)
-print(f"Total Return: {round(total, 2)}%")
+print(f"Total Return: {round(total, 2)}")
