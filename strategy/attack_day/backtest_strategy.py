@@ -1,4 +1,5 @@
 import backtrader as bt
+import pandas as pd
 
 class AttackReversalStrategy(bt.Strategy):
     params = (
@@ -20,66 +21,100 @@ class AttackReversalStrategy(bt.Strategy):
         self.kdj = bt.ind.Stochastic(
             self.data, period=9, period_dfast=3, period_dslow=3
         )
-        self.buy_price = None
-
-    def is_attack_setup(self):
+        self.stop_loss_price = 0.0
+        self.buy_price = 0.0
+        self.net = 0.0
+        self.size = 0
+        self.has_position = False
+        #self.profit_rate = self.p.take_profit
+        rate = self.get_profit_rate_by_hv(self.p.symbol)
+        if rate is None:
+            self.profit_rate = self.p.take_profit
+        else:
+            self.profit_rate = rate
+       
+       
+       # 修改这个也需要修改 daily_monitor.py 中的 get_profit_rate_by_hv 方法
+    @staticmethod 
+    def get_profit_rate_by_hv(symbol, csv_path="hv_30d_results.csv"):
+        df = pd.read_csv(csv_path)
         
+        row = df[df["Symbol"].str.upper() == symbol.upper()]
+        if not row.empty:
+            if row.iloc[0]["HV_30d"] > 0.7:
+                return 1.20
+            elif row.iloc[0]["HV_30d"] > 0.5:
+                return 1.18
+            elif row.iloc[0]["HV_30d"] > 0.3:      
+                return 1.15
+        
+        return 1.1
+        
+    def is_attack_setup(self):
+        date = self.data.datetime.date(0)
         if not (
             self.data.close[-1] < self.data.close[-2] and
             self.data.close[-1] < self.data.open[-1] and
             self.data.close[-1] < self.data.close[-3] and
             self.data.close[-1] < self.data.close[-4] and
             self.data.close[-1] < self.data.close[-5] 
-        ):
+        ): 
             return False
 
-
-        # 条件1：过去 5 / 6 天 已经下跌超过10%
-        if  ( 
-                (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct and
-                (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < self.p.down_pct 
-     ):
-            #print(f"[{date}] [0] not down 10% ")
+        if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < 0.10 and (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < 0.10 ):
             return False
          
-         
-        # 条件2：今日阳线
-        if self.data.close[0] <= self.data.open[0]:
+        
+        if self.data.close[0] <= self.data.open[0]: 
             return False
 
-        # 条件4：放量 > N日均量的2倍
         if self.data.volume[0] <= self.vol_sma5[0] * self.p.volume_multiplier:
             return False
 
         return True
+    
+    
 
     def next(self):
+        
         if not self.position:
             if self.is_attack_setup():
-                self.buy(exectype=bt.Order.Close)
+                self.has_position = True
                 self.buy_price = self.data.close[0]
-                self.high_watermark = self.data.close[0]
-                self.stop_loss_price = self.data.low[0]
-        else:
-            current_price = self.data.close[0]
-            # 更新最高价
-            if current_price > self.high_watermark:
-                self.high_watermark = current_price
+                size = int(5000 / self.buy_price)
+                if size > 0:
+                    self.order = self.buy(size=size)  
+                    self.size += size
                 
-  
-            # 止盈
-            if current_price >= self.buy_price * self.p.take_profit or self.kdj.percD[0] > 90:
-                print(f"[TAKE PROFIT] {self.p.symbol} at {current_price}, bought at {self.buy_price}")
+                self.stop_loss_price = self.data.low[0]* 0.95
+                
+                self.net -= (self.buy_price * self.size)
+        if self.position:
+            if   (self.data.high[0] >= self.buy_price * self.profit_rate) :
+                
+                    
+                #print(f"[TAKE PROFIT] {self.data.close[0] * self.size}")
+                
+                self.net += (self.buy_price * self.profit_rate * self.size)
+                #print("actural net: ", self.buy_price * self.p.take_profit * self.size)
+                self.buy_price = 0
+                self.size = 0
+                self.has_position = False
                 self.close()
-                self.buy_price = None
+                
+                # 止损：跌破买入日最低价
+            if   (self.data.low[0] < self.stop_loss_price):
+                #print(f"[STOP LOSS] {self.data.close[0] * self.size}")
+                
+                self.net += (self.stop_loss_price * self.size)
+                
+                #print("actural net: ", self.stop_loss_price * self.size)
+                self.buy_price = 0
+                self.stop_loss_price = 0
+                self.size = 0
+                self.has_position = False
+                self.close()
             
-            # 止损：跌破买入日最低价
-            elif current_price < self.stop_loss_price:
-                print(f"[STOP LOSS] {self.p.symbol} at {current_price}, bought at {self.buy_price}")
-                self.close()
-                self.buy_price = None
-                self.stop_loss_price = None
-                
                 
             # ❌【BAD】【BAD】【BAD】 根据backtest， 跌破买入价不如买入日最底下效果好
             
@@ -97,6 +132,15 @@ class AttackReversalStrategy(bt.Strategy):
             #    self.high_watermark = None
 
     def stop(self):
+        analysis = self.analyzers.trades.get_analysis()
+        #print (self.net)
+        #print (analysis.get('pnl', {}).get('net', {}).get('total', 0.0))
+        if (self.has_position):
+            self.net += (self.buy_price * self.size)
+            
+        #print(self.net - analysis.get('pnl', {}).get('net', {}).get('total', 0.0))
+        #if (self.net - analysis.get('pnl', {}).get('net', {}).get('total', 0.0) < -1000): 
+        #print(self.p.symbol)
         if self.p.printlog:
             try:
                 analysis = self.analyzers.trades.get_analysis()

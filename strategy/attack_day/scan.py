@@ -5,7 +5,7 @@ from datetime import datetime
 class AttackReversalSignalScan(bt.Strategy):
     params = (
         ('lookback_days', 5),
-        ('volume_multiplier', 1.38),
+        ('volume_multiplier', 1.3),
         ('symbol', 'UNKNOWN'),
         ('only_scan_last_day', True),
     )
@@ -15,6 +15,7 @@ class AttackReversalSignalScan(bt.Strategy):
         self.signal_today = False
 
     def is_attack_setup(self):
+        
         date = self.data.datetime.date(0)
         if not (
             self.data.close[-1] < self.data.close[-2] and
@@ -28,8 +29,7 @@ class AttackReversalSignalScan(bt.Strategy):
             return False
 
         if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < 0.10 and (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < 0.10 ):
-            #print(f"[{date}] [0] not down 10% ")
-            logging.info(f"[{date}] [0] not down 10% ")
+            #print(f"[{date}] [0] not down 10% ") 
             return False
          
         

@@ -2,7 +2,7 @@ import yfinance as yf
 import os
 import pandas as pd
 
-def fetch_yahoo_data(symbols, start="2025-01-01", end="2025-06-26", interval="1d", cache_dir="data"):
+def fetch_yahoo_data(symbols, start="2018-01-01", end="2025-06-01", interval="1d", cache_dir="data"):
     os.makedirs(cache_dir, exist_ok=True)
     if isinstance(symbols, str):
         symbols = [symbols]

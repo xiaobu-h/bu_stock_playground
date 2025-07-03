@@ -76,7 +76,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     return results[0].signal_today
 
 def main():
-    symbols = FINAL_SYMBOLS
+    symbols = TEST_SYMBOLS
     alert = False
     messages = []
     
@@ -86,7 +86,9 @@ def main():
         if scan_stock(symbol,AttackReversalSignalScan):
             alert = True
             logging.info(f"✅ Buy Signal [Attack Day]: {symbol}")
-            msg = f"📈 Buy Signal [Attack Day]: {symbol}"
+            pr = get_profit_pct_by_hv(symbol)
+            msg = f"📈 Buy Signal [Attack Day]: {symbol} - take profit: {pr}%"
+            
             messages.append(msg) 
         
         if scan_stock(symbol,BreakoutVolumeStrategy):
@@ -100,7 +102,7 @@ def main():
             logging.info(f"✅ Buy Signal [Bollinger Low Jump]: {symbol}")
             msg = f"📈 Buy Signal [[Bollinger Low Jump]: {symbol}"
             messages.append(msg)
-         
+        
         """ 等待调优
         if scan_stock(symbol, BollingerNewHighWithVolumeBreakoutStrategy):
             alert = True
@@ -115,8 +117,25 @@ def main():
     else:
         logging.info("No buy signals today.")
         send_telegram_message(f"No signals today.")
+       
+       
+       
+# 修改这个也需要修改 backtest_strateby.py 中的 get_profit_rate_by_hv 方法         
         
-        
+@staticmethod 
+def get_profit_pct_by_hv(symbol, csv_path="hv_30d_results.csv"):
+    df = pd.read_csv(csv_path)
+    
+    row = df[df["Symbol"].str.upper() == symbol.upper()]
+    if not row.empty:
+        if row.iloc[0]["HV_30d"] > 0.7:
+            return 20
+        elif row.iloc[0]["HV_30d"] > 0.5:
+            return 18
+        elif row.iloc[0]["HV_30d"] > 0.3:      
+            return 15 
+    
+    return 10   # defalt
  
 if __name__ == "__main__":
     main()
