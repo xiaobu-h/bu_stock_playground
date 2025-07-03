@@ -10,7 +10,6 @@ from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
 from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
 from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
 from strategy.attack_day.scan import AttackReversalSignalScan
-
  
 
 # logging
@@ -83,7 +82,6 @@ def main():
     
     for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
-        
         
         if scan_stock(symbol,AttackReversalSignalScan):
             alert = True

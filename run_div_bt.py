@@ -1,10 +1,10 @@
 import yfinance as yf
 import pandas as pd
+from get_symbols import DIVIDEN_SYMBOLS
 
-symbols = ["XOM", "CVX",  "KO", "JNJ", "IBM", "PRU"  , "PNC"  , "ENB" , "ET" , "GILD" , "MOH"]
 all_records = []
 total = 0
-for symbol in symbols:
+for symbol in DIVIDEN_SYMBOLS:
     ticker = yf.Ticker(symbol)
     try:
         div_dates = ticker.dividends.index
@@ -22,7 +22,7 @@ for symbol in symbols:
         
         try:
             idx = hist.index.get_loc(date)
-            if idx >= 6:
+            if idx >= 9:
                 buy_date = hist.index[idx - 8].date()
                 sell_date = hist.index[idx -1 ].date()
                 buy_price = hist.iloc[idx - 8]["Close"]
