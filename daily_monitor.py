@@ -73,7 +73,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=False)
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=True)    # ONLY Scan Last Day
     results = cerebro.run()
     return results[0].signal_today
 
