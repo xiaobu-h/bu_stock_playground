@@ -76,7 +76,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     return results[0].signal_today
 
 def main():
-    symbols = TEST_SYMBOLS
+    symbols = FINAL_SYMBOLS
     alert = False
     messages = []
     

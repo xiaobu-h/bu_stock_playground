@@ -2,15 +2,20 @@ import pandas as pd
 from datetime import datetime
 from telegram_bot import send_telegram_message
 from get_symbols import DIVIDEN_SYMBOLS
+import os
  
 def scan_dividend_window(window_days=7, today=None):
     
+    print("Current working directory:", os.getcwd())
     if today is None:
         today = pd.to_datetime(datetime.today().date())
     else:
         today = pd.to_datetime(today)
  
-    df = pd.read_csv("dividend_data.csv", parse_dates=["dividend_date"])
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # 脚本所在目录
+    csv_path = os.path.join(script_dir, "dividend_data.csv")
+
+    df = pd.read_csv(csv_path, parse_dates=["dividend_date"])
 
     result = {}
     alert = False
