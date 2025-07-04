@@ -2,6 +2,8 @@ import backtrader as bt
 import pandas as pd
 import yfinance as yf
 import logging
+import datetime
+import pandas_market_calendars as mcal
 
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
@@ -78,9 +80,9 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     return results[0].signal_today
 
 def main():
-    
-    if datetime.date.today().weekday() >= 5 :
-        send_telegram_message("Enjoy the weekend! :)")
+    if not is_trading_day():
+        is_weekend =  datetime.today().weekday() >=  5
+        send_telegram_message("Enjoy the weekend! :)" if is_weekend else "Enjoy the holiday!! :)")
         return
     
     symbols = FINAL_SYMBOLS
@@ -165,7 +167,14 @@ def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_result
         elif row.iloc[0]["HV_30d"] > 0.3:      
             return 9
     return 5
-    
+
+ 
+
+def is_trading_day():
+    nyse = mcal.get_calendar('NYSE')
+    today = datetime.today()
+    schedule = nyse.valid_days(start_date=today.date(), end_date=today.date())
+    return not schedule.empty 
     
     
 if __name__ == "__main__":
