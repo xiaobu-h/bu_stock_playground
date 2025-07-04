@@ -78,10 +78,14 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     return results[0].signal_today
 
 def main():
+    
+    if datetime.date.today().weekday() >= 5 :
+        send_telegram_message("Enjoy the weekend! :)")
+        return
+    
     symbols = FINAL_SYMBOLS
     alert = False
     messages = []
-    
     for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
         try: 
