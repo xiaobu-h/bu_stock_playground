@@ -67,11 +67,7 @@ class CustomPandasData(bt.feeds.PandasData):
 
 
 # call scanner 
-def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
-    df = fetch_recent_data(symbol)
-    if df is None:
-        return False
-
+def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
@@ -88,10 +84,16 @@ def main():
     symbols = FINAL_SYMBOLS
     alert = False
     messages = []
+    
     for symbol in symbols: 
+        df = fetch_recent_data(symbol)
+        if df is None:
+            continue 
+    
         logging.info(f"Scanning {symbol}...")
+        
         try: 
-            if scan_stock(symbol,SimpleVolumeStrategy):
+            if scan_stock(symbol,df, SimpleVolumeStrategy ):
                 alert = True
                 logging.info(f"Buy Signal [Vol x 2]: {symbol}")
                 pr = get_profit_rate_by_hv_for_sample_high_volume(symbol)
@@ -101,7 +103,7 @@ def main():
             logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
         
         try:           
-            if scan_stock(symbol,AttackReversalSignalScan):
+            if scan_stock(symbol, df, AttackReversalSignalScan):
                 alert = True
                 logging.info(f"Buy Signal [Attack Day]: {symbol}")
                 pr = get_profit_pct_by_hv(symbol)
@@ -111,7 +113,7 @@ def main():
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
         try:
-            if scan_stock(symbol,BreakoutVolumeStrategy):
+            if scan_stock(symbol,df, BreakoutVolumeStrategy):
                 alert = True
                 logging.info(f" Buy Signal [Breakout Volume]: {symbol}") 
                 msg = f"Buy Signal [Breakout Volume]: {symbol}"
@@ -120,7 +122,7 @@ def main():
             logging.warning(f"Error Scanning [Breakout Volume] for {symbol}: {e}")
         
         try:  
-            if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
+            if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
                 alert = True
                 logging.info(f" Buy Signal [Bollinger Low Jump]: {symbol}")
                 msg = f"Buy Signal [Bollinger Low Jump]: {symbol}"
