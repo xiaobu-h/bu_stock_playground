@@ -6,6 +6,7 @@ from strategy.attack_day.backtest_strategy import AttackReversalStrategy
 from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
 from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
 from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
+from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
 
@@ -34,7 +35,7 @@ summary = {
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     df_dict = fetch_yahoo_data(symbols)
     from collections import Counter
-    position_counter = Counter()  
+    position_counter = Counter()   
     
     for symbol, df in df_dict.items():
         df = df[["Open", "High", "Low", "Close", "Volume"]]
@@ -45,6 +46,16 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
+            SimpleVolumeStrategy,
+            printlog=False,
+            symbol=symbol, 
+            only_scan_last_day=False
+        )
+        
+        
+        """ 
+        
+         cerebro.addstrategy(
             AttackReversalStrategy,
             boll_period=20,
             boll_devfactor=1.5,
@@ -54,10 +65,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             printlog=False,
             symbol=symbol
         )
-           
         
         
-        """ 
         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             lookback_days=8,
@@ -160,7 +169,7 @@ class TrackPositions(bt.Analyzer):
 # manually run the backtest
 
 if __name__ == "__main__":
-    #run(["FANG"])
+    #run(TEST_SYMBOLS)
     #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
     #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  #5:11    3:3
     

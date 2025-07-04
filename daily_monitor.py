@@ -10,6 +10,8 @@ from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
 from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
 from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
 from strategy.attack_day.scan import AttackReversalSignalScan
+
+from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
  
 
 # logging
@@ -71,7 +73,7 @@ def scan_stock(symbol, strategy_class=BollingerVolumeBreakoutStrategy):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=True)
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=False)
     results = cerebro.run()
     return results[0].signal_today
 
@@ -82,34 +84,45 @@ def main():
     
     for symbol in symbols: 
         logging.info(f"Scanning {symbol}...")
+        try: 
+            if scan_stock(symbol,SimpleVolumeStrategy):
+                alert = True
+                logging.info(f"Buy Signal [Vol x 2]: {symbol}")
+                pr = get_profit_rate_by_hv_for_sample_high_volume(symbol)
+                msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {pr}%"
+                messages.append(msg) 
+        except Exception as e:
+            logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
         
-        if scan_stock(symbol,AttackReversalSignalScan):
-            alert = True
-            logging.info(f"Buy Signal [Attack Day]: {symbol}")
-            pr = get_profit_pct_by_hv(symbol)
-            msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {pr}%"
-            
-            messages.append(msg) 
+        try:           
+            if scan_stock(symbol,AttackReversalSignalScan):
+                alert = True
+                logging.info(f"Buy Signal [Attack Day]: {symbol}")
+                pr = get_profit_pct_by_hv(symbol)
+                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {pr}%"
+                messages.append(msg) 
+        except Exception as e:
+            logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
-        if scan_stock(symbol,BreakoutVolumeStrategy):
-            alert = True
-            logging.info(f" Buy Signal [Breakout Volume]: {symbol}") 
-            msg = f"Buy Signal [Breakout Volume]: {symbol}"
-            messages.append(msg) 
+        try:
+            if scan_stock(symbol,BreakoutVolumeStrategy):
+                alert = True
+                logging.info(f" Buy Signal [Breakout Volume]: {symbol}") 
+                msg = f"Buy Signal [Breakout Volume]: {symbol}"
+                messages.append(msg) 
+        except Exception as e:
+            logging.warning(f"Error Scanning [Breakout Volume] for {symbol}: {e}")
         
-        if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
-            alert = True
-            logging.info(f" Buy Signal [Bollinger Low Jump]: {symbol}")
-            msg = f"Buy Signal [[Bollinger Low Jump]: {symbol}"
-            messages.append(msg)
+        try:  
+            if scan_stock(symbol,BollingerVolumeBreakoutStrategy):
+                alert = True
+                logging.info(f" Buy Signal [Bollinger Low Jump]: {symbol}")
+                msg = f"Buy Signal [Bollinger Low Jump]: {symbol}"
+                messages.append(msg)
+        except Exception as e:
+            logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
         
-        """ 等待调优
-        if scan_stock(symbol, BollingerNewHighWithVolumeBreakoutStrategy):
-            alert = True
-            logging.info(f"Buy Signal [Bollinger New High]: {symbol}")
-            msg = f"Buy Signal [Bollinger New High]: {symbol}"
-            messages.append(msg)
-        """
+ 
 
     if alert: 
         final_message = "\n".join(messages)
@@ -136,6 +149,20 @@ def get_profit_pct_by_hv(symbol, csv_path="hv_30d_results.csv"):
             return 15 
     
     return 10   # defalt
- 
+
+@staticmethod 
+def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_results.csv"):
+    df = pd.read_csv(csv_path)
+    
+    row = df[df["Symbol"].str.upper() == symbol.upper()]
+    if not row.empty:
+        if row.iloc[0]["HV_30d"] > 0.5:
+            return 20
+        elif row.iloc[0]["HV_30d"] > 0.3:      
+            return 9
+    return 5
+    
+    
+    
 if __name__ == "__main__":
     main()
