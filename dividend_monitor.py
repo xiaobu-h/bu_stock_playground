@@ -4,7 +4,7 @@ from telegram_bot import send_telegram_message
 from get_symbols import DIVIDEN_SYMBOLS
 import os
  
-def scan_dividend_window(window_days=7, today=None):
+def scan_dividend_window(window_days=8, today=None):
     
     print("Current working directory:", os.getcwd())
     if today is None:
