@@ -146,29 +146,30 @@ def main():
 @staticmethod 
 def get_profit_pct_by_hv(symbol, csv_path="hv_30d_results.csv"):
     df = pd.read_csv(csv_path)
-    
-    row = df[df["Symbol"].str.upper() == symbol.upper()]
-    if not row.empty:
-        if row.iloc[0]["HV_30d"] > 0.7:
-            return 20
-        elif row.iloc[0]["HV_30d"] > 0.5:
-            return 18
-        elif row.iloc[0]["HV_30d"] > 0.3:      
-            return 15 
-    
-    return 10   # defalt
+    try: 
+        row = df[df["Symbol"].str.upper() == symbol.upper()]
+        if not row.empty:
+            if row.iloc[0]["HV_30d"] > 0.7:
+                return 20
+            elif row.iloc[0]["HV_30d"] > 0.5:
+                return 18
+            elif row.iloc[0]["HV_30d"] > 0.3:      
+                return 15 
+    finally:
+        return 10   # defalt
 
 @staticmethod 
 def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_results.csv"):
     df = pd.read_csv(csv_path)
-    
-    row = df[df["Symbol"].str.upper() == symbol.upper()]
-    if not row.empty:
-        if row.iloc[0]["HV_30d"] > 0.5:
-            return 20
-        elif row.iloc[0]["HV_30d"] > 0.3:      
-            return 9
-    return 5
+    try:
+        row = df[df["Symbol"].str.upper() == symbol.upper()]
+        if not row.empty:
+            if row.iloc[0]["HV_30d"] > 0.5:
+                return 20
+            elif row.iloc[0]["HV_30d"] > 0.3:      
+                return 9
+    finally:
+        return 5
 
  
 

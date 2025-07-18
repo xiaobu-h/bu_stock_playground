@@ -5,13 +5,11 @@ from get_symbols import DIVIDEN_SYMBOLS
 import os
  
 def scan_dividend_window(window_days=8, today=None):
-    
-    print("Current working directory:", os.getcwd())
     if today is None:
         today = pd.to_datetime(datetime.today().date())
     else:
         today = pd.to_datetime(today)
- 
+    print(f"Today: {today}")
     script_dir = os.path.dirname(os.path.abspath(__file__))  # 脚本所在目录
     csv_path = os.path.join(script_dir, "dividend_data.csv")
 
