@@ -174,7 +174,7 @@ def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_result
  
 
 def is_trading_day():
-    return True
+    
     nyse = mcal.get_calendar('NYSE')
     today = datetime.today()
     schedule = nyse.valid_days(start_date=today.date(), end_date=today.date())
