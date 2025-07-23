@@ -17,7 +17,7 @@ from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
  
 
 # logging
-log_filename = datetime.now().strftime("bl_jump_monitor_%Y-%m-%d.log")
+log_filename = datetime.now().strftime("monitor_log_%Y-%m-%d.log")
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,
@@ -30,7 +30,7 @@ logging.basicConfig(
 def fetch_recent_data(symbol):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=30)  # load extra data to ensure we have enough for the strategy
+        start_date = end_date - pd.Timedelta(days=30)  # load extra data to ensure we have enough for the strategy     
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
 
         if df.empty:
