@@ -1,6 +1,7 @@
 import backtrader as bt
 from datetime import datetime
 import pandas as pd
+import logging
 
 class SimpleVolumeLogic:
     def __init__(self, data,   volume_multiplier=1.5, min_total_increse_percent=0.01):
@@ -96,6 +97,8 @@ class SimpleVolumeStrategy(bt.Strategy):
                 self.close()
  
         if self.buy_logic.check_buy_signal():
+            logger = logging.getLogger(__name__)
+            logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
             
             if self.p.only_scan_last_day:
                 self.signal_today = True

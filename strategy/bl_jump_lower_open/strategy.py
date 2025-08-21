@@ -1,5 +1,6 @@
 import backtrader as bt
 from datetime import datetime
+import logging
 
 from collections import defaultdict
 
@@ -38,7 +39,7 @@ class BollingerVolumeBreakoutLogic:
             #print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
        
-
+        logging.info(f"[{self.data.datetime.date(0)}] Bollinger Low Jump -{self.p.symbol}!")
         return True
     
 class BollingerVolumeBreakoutStrategy(bt.Strategy):

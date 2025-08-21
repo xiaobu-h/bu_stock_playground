@@ -25,6 +25,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+ONLY_SCAN_LAST_DAY = True 
 
 # fetcher
 def fetch_recent_data(symbol):
@@ -71,7 +72,7 @@ def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
-    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=True)    # ONLY Scan Last Day
+    cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=ONLY_SCAN_LAST_DAY)    # ONLY Scan Last Day
     results = cerebro.run()
     return results[0].signal_today
 
@@ -94,8 +95,7 @@ def main():
         
         try: 
             if scan_stock(symbol,df, SimpleVolumeStrategy ):
-                alert = True
-                logging.info(f"Buy Signal [Vol x 2]: {symbol}")
+                alert = True 
                 pr = get_profit_rate_by_hv_for_sample_high_volume(symbol)
                 msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {pr}%"
                 messages.append(msg) 
@@ -104,8 +104,7 @@ def main():
         
         try:           
             if scan_stock(symbol, df, AttackReversalSignalScan):
-                alert = True
-                logging.info(f"Buy Signal [Attack Day]: {symbol}")
+                alert = True 
                 pr = get_profit_pct_by_hv(symbol)
                 msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {pr}%"
                 messages.append(msg) 
@@ -114,8 +113,7 @@ def main():
         
         try:
             if scan_stock(symbol,df, BreakoutVolumeStrategy):
-                alert = True
-                logging.info(f" Buy Signal [Breakout Volume]: {symbol}") 
+                alert = True 
                 msg = f"Buy Signal [Breakout Volume]: {symbol}"
                 messages.append(msg) 
         except Exception as e:
@@ -123,22 +121,21 @@ def main():
         
         try:  
             if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
-                alert = True
-                logging.info(f" Buy Signal [Bollinger Low Jump]: {symbol}")
+                alert = True 
                 msg = f"Buy Signal [Bollinger Low Jump]: {symbol}"
                 messages.append(msg)
         except Exception as e:
             logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
         
  
-
-    if alert: 
-        final_message = "\n".join(messages)
-        send_telegram_message(f"[Stock Alert]\n{final_message}")
-    else:
-        logging.info("No buy signals today.")
-        send_telegram_message(f"No signals today.")
-       
+    if ONLY_SCAN_LAST_DAY:    # send summary only when scanning last day
+        if alert: 
+            final_message = "\n".join(messages)
+            send_telegram_message(f"[Stock Alert]\n{final_message}")
+        else:
+            logging.info("No buy signals today.")
+            send_telegram_message(f"No signals today.")
+     
        
        
 # 修改这个也需要修改 backtest_strateby.py 中的 get_profit_rate_by_hv 方法         
@@ -155,8 +152,11 @@ def get_profit_pct_by_hv(symbol, csv_path="hv_30d_results.csv"):
                 return 18
             elif row.iloc[0]["HV_30d"] > 0.3:      
                 return 15 
-    finally:
-        return 10   # defalt
+            return 10
+    
+    except Exception as e:
+        logging.warning(f"Error getting profit rate for {symbol}: {e}")
+        return 10   
 
 @staticmethod 
 def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_results.csv"):
@@ -168,7 +168,9 @@ def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_result
                 return 20
             elif row.iloc[0]["HV_30d"] > 0.3:      
                 return 9
-    finally:
+            return 5
+    except Exception as e:
+        logging.warning(f"Error getting profit rate for {symbol}: {e}")
         return 5
 
  

@@ -35,13 +35,14 @@ class AttackReversalSignalScan(bt.Strategy):
         
         if self.data.close[0] <= self.data.open[0]:
             #print(f"[{date}] [1] Today is not a bullish day.")
-            logging.info(f"[{date}] [1] Today is not a bullish day.")
+            #logging.info(f"[{date}] [1] Today is not a bullish day.")
             return False
 
         if self.data.volume[0] <= self.vol_sma5[0] * self.p.volume_multiplier:
-            logging.info(f"[{date}] [2] Volume is not sufficiently high.")
+            #logging.info(f"[{date}] [2] Volume is not sufficiently high.")
             return False
 
+        logging.info(f"[{date}] Attack Day - {self.p.symbol}!")
         return True
 
     def next(self):

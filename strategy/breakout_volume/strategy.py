@@ -1,5 +1,6 @@
 import backtrader as bt
 from datetime import datetime
+import logging
 
 
 class BreakoutVolumeLogic:
@@ -30,7 +31,6 @@ class BreakoutVolumeLogic:
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
        
-
         return True
     
 class BreakoutVolumeStrategy(bt.Strategy):
@@ -75,7 +75,7 @@ class BreakoutVolumeStrategy(bt.Strategy):
                 self.close()
  
         if self.buy_logic.check_buy_signal():
-            
+            logging.info(f"[{self.data.datetime.date(0)}] Breakout Volume - {self.p.symbol}!")
             if self.p.only_scan_last_day:
                 self.signal_today = True
             else: 

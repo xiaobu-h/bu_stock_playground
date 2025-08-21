@@ -11,7 +11,7 @@ NASDAQ100 = ['QCOM', 'AMAT', 'TTD', 'AMD', 'CDNS', 'LRCX', 'ADSK', 'LIN', 'TEAM'
 
 def calculate_hv(ticker, window=30):
     try:
-        df = yf.download(ticker, period="6mo", progress=False)
+        df = yf.download(ticker, period="6mo",auto_adjust=True, progress=False)
         df['log_return'] = np.log(df['Close'] / df['Close'].shift(1))
         hv = df['log_return'].rolling(window=window).std() * np.sqrt(252)
         return hv.dropna().iloc[-1]
