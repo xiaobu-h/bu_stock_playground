@@ -25,7 +25,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-ONLY_SCAN_LAST_DAY = True 
+ONLY_SCAN_LAST_DAY = False 
 
 # fetcher
 def fetch_recent_data(symbol):
