@@ -33,14 +33,18 @@ class SimpleVolumeLogic:
             #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
             return False
         
+        #if (self.data.close[-1]  > close) & ((self.data.close[-1] - close) > self.data.close[-1] * 0.8):
+            #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
+            #return False
+        
         return True
     
 class SimpleVolumeStrategy(bt.Strategy):
     params = (
-        ('volume_multiplier', 2), 
-        ('min_total_increse_percent', 0.01),
+        ('volume_multiplier', 1.5), 
+        ('min_total_increse_percent', 0.012),
         ('only_scan_last_day', True),
-        ('take_profit', 1.1),
+        ('take_profit', 1.05),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
     )
@@ -69,7 +73,7 @@ class SimpleVolumeStrategy(bt.Strategy):
             min_total_increse_percent=self.p.min_total_increse_percent,
             volume_multiplier=self.p.volume_multiplier
         )
-        rate = self.get_profit_rate_by_hv(self.p.symbol)
+        rate = 1.04 # = self.get_profit_rate_by_hv(self.p.symbol)
         if rate is None:
             self.profit_rate = self.p.take_profit
         else:
@@ -84,9 +88,9 @@ class SimpleVolumeStrategy(bt.Strategy):
         if  self.position: 
             low = self.data.low[0]
             
-           # if  (self.data.high[0]  - self.entry_price) > self.increses  :
-           # #    self.close()
-            #    return
+            if  (self.data.high[0]  - self.entry_price) > self.increses  :
+                self.close()
+                return
             
             if  self.data.high[0]  > self.entry_price * self.profit_rate:
                 #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {self.data.high[0]:.2f} > Entry {self.entry_price:.2f}")
@@ -108,7 +112,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                     self.order = self.buy(size=size)
                     self.increses = self.data.close[0] - self.data.open[0]
                     
-                    print(f"[BUY] [{self.p.symbol}] - {self.data.datetime.date(0)}]")
+                    #print(f"[BUY] [{self.p.symbol}] - {self.data.datetime.date(0)}]")
                     self.entry_price = self.data.close[0]
                     self.stop_price = min(self.data.low[0] , self.data.low[-1] ) 
                     self.signal_today = True

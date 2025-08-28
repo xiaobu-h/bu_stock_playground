@@ -9,6 +9,11 @@ from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
+from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
+
+import statistics
+
+
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -36,7 +41,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     df_dict = fetch_yahoo_data(symbols)
     from collections import Counter
     position_counter = Counter()   
-    
+    all_bars = []
+    all_days = []
     for symbol, df in df_dict.items():
         df = df[["Open", "High", "Low", "Close", "Volume"]]
 
@@ -103,14 +109,17 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         
         """
-        
+        cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
        #cerebro.addanalyzer(TrackPositions, _name='pos_tracker')
         
         cerebro.broker.set_cash(10000)
         
         results = cerebro.run()
-    
+        strat = results[0]                     # 拿到策略实例
+        analysis = strat.analyzers.td.get_analysis()
+        all_bars.extend(analysis["bars"])
+        all_days.extend(analysis["days"])
         analysis = results[0].analyzers.trades.get_analysis()
         summary['total_trades'] += analysis.get('total', {}).get('total', 0)
         summary['wins'] += analysis.get('won', {}).get('total', 0)
@@ -125,17 +134,18 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
        # daily_positions = results[0].analyzers.pos_tracker.get_analysis()
         #for date, count in daily_positions.items():
         #    position_counter[date] += count
- 
+    if all_bars:
+        avg_bars = statistics.mean(all_bars)
+        avg_days = statistics.mean(all_days)
+        print(f"跨全部 symbol 的平均持仓（bar）：{avg_bars:.2f}")
+        print(f"跨全部 symbol 的平均持仓（天）： {avg_days:.2f}")
+    else:
+        print("没有任何已平仓交易，无法计算平均持仓。")
        
-    print_daily_positions(position_counter)
+ 
         
 
-
-def print_daily_positions( position_counter):
-    print("\nDaily Open Positions:")
-    for date, count in sorted(position_counter.items()):
-        print(f"{date} - {count}")
-        
+ 
 
 def print_summary():
     total = summary['total_trades']
@@ -176,5 +186,5 @@ if __name__ == "__main__":
     #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
     
     #run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
-    run(NASDAQ100) 
+    run(FINAL_SYMBOLS) 
     print_summary()
