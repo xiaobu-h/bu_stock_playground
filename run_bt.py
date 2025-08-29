@@ -38,9 +38,9 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    df_dict = fetch_yahoo_data(symbols)
+    df_dict = fetch_yahoo_data(symbols, start="2025-06-01", end="2025-08-27")
     from collections import Counter
-    position_counter = Counter()   
+    
     all_bars = []
     all_days = []
     for symbol, df in df_dict.items():
@@ -110,8 +110,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
-        cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
-       #cerebro.addanalyzer(TrackPositions, _name='pos_tracker')
+        cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades") 
         
         cerebro.broker.set_cash(10000)
         
@@ -130,10 +129,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         #cerebro.plot()
         
-        
-       # daily_positions = results[0].analyzers.pos_tracker.get_analysis()
-        #for date, count in daily_positions.items():
-        #    position_counter[date] += count
+ 
     if all_bars:
         avg_bars = statistics.mean(all_bars)
         avg_days = statistics.mean(all_days)
@@ -166,19 +162,6 @@ def print_summary():
         f"  Total Trades: {total} | Wins: {wins} | Losses: {losses} | Win Rate: {win_rate:.2f}%\n"
         f"  Total Win PnL: {pnl_won:.2f} | Total Loss PnL: {pnl_lost:.2f} | Net PnL: {pnl_net:.2f}"
     )
-
-class TrackPositions(bt.Analyzer):
-    def __init__(self):
-        self.daily_positions = defaultdict(int)
-
-    def next(self):
-        date = self.strategy.data.datetime.date(0)
-        position = self.strategy.getposition().size
-        if position > 0:
-            self.daily_positions[date] += 1
-
-    def get_analysis(self):
-        return self.daily_positions
 
  
 # manually run the backtest

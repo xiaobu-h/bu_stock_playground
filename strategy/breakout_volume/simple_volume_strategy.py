@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 
 class SimpleVolumeLogic:
-    def __init__(self, data,   volume_multiplier=1.5, min_total_increse_percent=0.01):
+    def __init__(self, data, volume_multiplier, min_total_increse_percent):
         self.data = data
         self.min_total_increse_percent = min_total_increse_percent
  
@@ -32,16 +32,16 @@ class SimpleVolumeLogic:
             #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
             return False
         
-        #if (self.data.close[-1]  > close) & ((self.data.close[-1] - close) > self.data.close[-1] * 0.8):
+        if (self.data.low[-1]  > close) & ((self.data.low[-1] - close) > self.data.close[-1] * 0.03):
             #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
-            #return False
+            return False
         
         return True
     
 class SimpleVolumeStrategy(bt.Strategy):
     params = (
-        ('volume_multiplier', 1.5), 
-        ('min_total_increse_percent', 0.012),
+        ('volume_multiplier', 1.8), 
+        ('min_total_increse_percent', 0.0133),  # 最小涨幅 1.33%
         ('only_scan_last_day', True),
         ('take_profit', 1.05),
         ('printlog', False),
@@ -68,12 +68,15 @@ class SimpleVolumeStrategy(bt.Strategy):
         
         if  self.position:  
             
-            rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.06 else 1.025   # 当日上涨超6% 则止盈放宽至2.5%
+            # 止盈
+            rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.06 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
             
             if  self.data.high[0]  > self.entry_price * rate:
                 self.close()
                 return
             
+            
+            # 止损
             if self.data.low[0] < self.stop_price * 0.97: 
                 #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {self.data.low[0]:.2f} < Stop {self.stop_price:.2f}")
                 self.close()
@@ -88,28 +91,11 @@ class SimpleVolumeStrategy(bt.Strategy):
             else: 
                 size = int(5000 / self.data.close[0])
                 if size > 0:
-                    self.order = self.buy(size=size  )
+                    self.order = self.buy(size=size)
                     self.day0_increses = self.data.close[0] - self.data.open[0]
                     
                     #print(f"[BUY] [{self.p.symbol}] - {self.data.datetime.date(0)}]")
                     self.entry_price = self.data.close[0]
                     self.stop_price = min(self.data.low[0] , self.data.low[-1] ) 
                     self.signal_today = True
-    def stop(self):
-        if self.p.printlog:
-            try:
-                analysis = self.analyzers.trades.get_analysis()
-                total = analysis.get('total', {}).get('total', 0)
-                won = analysis.get('won', {}).get('total', 0)
-                lost = analysis.get('lost', {}).get('total', 0)
-                pnl_net = analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
-                win_rate = (won / total * 100) if total else 0
-            except Exception as e:
-                print(f"[ERROR] Analyzer error for {self.p.symbol}: {e}")
-                total = won = lost = 0
-                pnl_net = win_rate = 0
-
-            print(
-                f"[STOP] [{self.p.symbol}] Final Value: {self.broker.getvalue():.2f} "
-                f"Trades: {total} | Wins: {won} | Losses: {lost} | Win Rate: {win_rate:.2f}% | Net PnL: {pnl_net:.2f}"
-            )
+                    
