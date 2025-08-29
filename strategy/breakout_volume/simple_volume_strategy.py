@@ -13,8 +13,7 @@ class SimpleVolumeLogic:
         self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)
         self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data.volume, period=10)
         
-        
-            
+               
             
     def check_buy_signal(self): 
         open_ = self.data.open[0]
@@ -49,56 +48,36 @@ class SimpleVolumeStrategy(bt.Strategy):
         ('symbol', 'UNKNOWN'),
     )
         
-    @staticmethod 
-    def get_profit_rate_by_hv(symbol, csv_path="hv_30d_results.csv"):
-        df = pd.read_csv(csv_path)
-        
-        row = df[df["Symbol"].str.upper() == symbol.upper()]
-        if not row.empty:
-            if row.iloc[0]["HV_30d"] > 0.5:
-                return 1.2
-            elif row.iloc[0]["HV_30d"] > 0.3:      
-                return 1.09
-        return 1.05
-    
-    
     
     def __init__(self):
         self.signal_today = False
         self.order = None
         self.entry_price = None
-        self.increses= None
+        self.day0_increses= None
         self.buy_logic = SimpleVolumeLogic(
             self.data, 
             min_total_increse_percent=self.p.min_total_increse_percent,
             volume_multiplier=self.p.volume_multiplier
-        )
-        rate = 1.04 # = self.get_profit_rate_by_hv(self.p.symbol)
-        if rate is None:
-            self.profit_rate = self.p.take_profit
-        else:
-            self.profit_rate = rate
+        ) 
 
     def next(self):
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
                return
            
-           
-        if  self.position: 
-            low = self.data.low[0]
+        
+        if  self.position:  
             
-            if  (self.data.high[0]  - self.entry_price) > self.increses  :
+            rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.06 else 1.025   # 当日上涨超6% 则止盈放宽至2.5%
+            
+            if  self.data.high[0]  > self.entry_price * rate:
                 self.close()
                 return
             
-            if  self.data.high[0]  > self.entry_price * self.profit_rate:
-                #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {self.data.high[0]:.2f} > Entry {self.entry_price:.2f}")
+            if self.data.low[0] < self.stop_price * 0.97: 
+                #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {self.data.low[0]:.2f} < Stop {self.stop_price:.2f}")
                 self.close()
-                return
-            if low < self.stop_price * 0.97: 
-                #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {low:.2f} < Stop {self.stop_price:.2f}")
-                self.close()
+            
  
         if self.buy_logic.check_buy_signal():
             logger = logging.getLogger(__name__)
@@ -109,8 +88,8 @@ class SimpleVolumeStrategy(bt.Strategy):
             else: 
                 size = int(5000 / self.data.close[0])
                 if size > 0:
-                    self.order = self.buy(size=size)
-                    self.increses = self.data.close[0] - self.data.open[0]
+                    self.order = self.buy(size=size  )
+                    self.day0_increses = self.data.close[0] - self.data.open[0]
                     
                     #print(f"[BUY] [{self.p.symbol}] - {self.data.datetime.date(0)}]")
                     self.entry_price = self.data.close[0]

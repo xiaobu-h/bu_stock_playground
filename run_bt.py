@@ -139,9 +139,14 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         avg_days = statistics.mean(all_days)
         print(f"跨全部 symbol 的平均持仓（bar）：{avg_bars:.2f}")
         print(f"跨全部 symbol 的平均持仓（天）： {avg_days:.2f}")
+        
+        print("Max money usage:")
+        print(  avg_bars * summary['total_trades'] * 5000 / 63)
+        print("月转化:")
+        print(summary['pnl_net'] / (avg_bars * summary['total_trades'] * 5000 / 63) * 32)
     else:
         print("没有任何已平仓交易，无法计算平均持仓。")
-       
+    
  
         
 
