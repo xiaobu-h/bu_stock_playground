@@ -38,48 +38,36 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    df_dict = fetch_yahoo_data(symbols, start="2024-11-01", end="2025-08-30")  # 近期 2025 
-    total_trading_days=164
+    
+    start="2020-01-01"
+    end="2025-06-01"   # 长期  # 65 个月
     
     '''
-    
-       df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
-    total_trading_days=164
-    
-       df_dict = fetch_yahoo_data(symbols, start="2025-06-01", end="2025-08-27")  # 近期 近三个月
-    total_trading_days=63
+    start="2025-01-01"
+    end="2025-08-28"   # 近期 2025   8个月
     
     
-    df_dict = fetch_yahoo_data(symbols, start="2020-01-01", end="2025-06-01")  # 长期
-    total_trading_days=1343  # 65 个月
+    start="2025-06-01"
+    end="2025-08-27"  # 近期  近三个月
+    
+
     
       
+    start="2022-01-01"
+    end="2022-12-30"   # 熊市 2022   #  12 个月   
     
     
-    df_dict = fetch_yahoo_data(symbols, start="2022-01-01", end="2022-12-30")  # 熊市 2022
-    total_trading_days=250 #  12 个月   
+    start="2025-02-24"
+    end="2025-04-07"   # 熊市 2025关税
     
-    
-    df_dict = fetch_yahoo_data(symbols, start="2025-02-24", end="2025-04-07")  # 熊市 2025关税
-    total_trading_days=30
-
-        df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
-    total_trading_days=164
-
-    
-    
-    
-    
- df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
-    total_trading_days=164
-
-    
-    
-    df_dict = fetch_yahoo_data(symbols, start="2022-10-11", end="2025-02-20")  # 牛市 2022 - 2025
-    total_trading_days=585
+ 
+  
+    start="2022-10-11"
+    end="2025-02-20"     # 牛市 2022 - 2025
+ 
     '''
-    
-    
+    df_dict = fetch_yahoo_data(symbols, start=start, end=end)  # 近期 2025 
+    total_trading_days =  len( pd.bdate_range(start=start, end=end)) 
     
     all_bars = []
     all_days = []
@@ -181,11 +169,15 @@ if __name__ == "__main__":
     #run(TEST_SYMBOLS)
     #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
     avg_bars,total_trading_days = run(FINAL_SYMBOLS) 
+    
+    
+    
+    
     total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
     print("=====  Max money usage: ===== ")
     max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING / total_trading_days
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")
-    print(  net_profit / max_avg_money / 10 )    
+    print(  net_profit / max_avg_money / 65 )    
        

@@ -63,6 +63,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.order = None
         self.entry_price = None
         self.stop_price = None
+        self.entry_date = None
         self.day0_increses= None
         self.buy_logic = SimpleVolumeLogic(
             self.data, 
@@ -82,7 +83,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         if  self.position:  
             
             rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
-           
+            size = int(ONE_TIME_SPENDING / self.entry_price)
             # 止盈
             if  self.data.high[0]  > self.entry_price * rate:
                 # ==================== 统计 ====================
@@ -98,18 +99,42 @@ class SimpleVolumeStrategy(bt.Strategy):
             # 止损
             if self.data.low[0] < self.stop_price:  
                 
+                #if( dt == '2024-12'):
+                #    print(f" Close LOSS {self.p.symbol} on {self.data.datetime.date(0)}")
                 # ==================== 统计 ====================
                 self.monthly_stats[dt]["losses"] += 1
                 SimpleVolumeStrategy.global_stats[dt]["losses"] += 1
-                size = int(ONE_TIME_SPENDING / self.entry_price)
+                
                 self.monthly_stats[dt]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 SimpleVolumeStrategy.global_stats[dt]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 # ==============================================
                 self.close()
                 return
              
- 
+            '''
+            if len( pd.bdate_range(start=self.entry_date, end=self.data.datetime.date(0)) ) >= 7:
+                
+                # ==================== 统计 ====================
+                if self.data.close[0] > self.entry_price:
+                    self.monthly_stats[dt]["wins"] += 1
+                    SimpleVolumeStrategy.global_stats[dt]["wins"] += 1  # 累加到全局
+                    self.monthly_stats[dt]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
+                    SimpleVolumeStrategy.global_stats[dt]["Win$"] += (self.data.close[0] - self.entry_price) * size
+                else:
+                    self.monthly_stats[dt]["losses"] += 1
+                    SimpleVolumeStrategy.global_stats[dt]["losses"] += 1
+                    size = int(ONE_TIME_SPENDING / self.entry_price)
+                    self.monthly_stats[dt]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                    SimpleVolumeStrategy.global_stats[dt]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                # ==============================================
+                
+                self.close()
+                return
+ '''
         if self.buy_logic.check_buy_signal():
+            
+            if self.data.datetime.date(0).strftime("%Y-%m-%d") == "2024-12-20":
+                return
             logger = logging.getLogger(__name__)
             logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
             self.signal_today = True
@@ -122,6 +147,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 self.day0_increses = self.data.close[0] - self.data.open[0]
                 self.entry_price = self.data.close[0]
                 self.stop_price = min(self.data.low[0] , self.data.low[-1] ) 
+                self.entry_date = self.data.datetime.date(0)
                     
     @classmethod
     def export_global_csv(cls, filepath: str):
@@ -168,9 +194,12 @@ class SimpleVolumeStrategy(bt.Strategy):
             writer.writerows(rows)
 
         # 控制台 summary
-        print("===== 按月统计 =====")
-        for r in rows:
-            print(f"{r['month']}: Total buy={r['buys']}    | Total close={r['wins']+r['losses']}  |   Wins={r['wins']}   |   Losses={r['losses']}   |   WinRate={r['win_rate']}")
+        
+        #print("===== 按月统计 =====")
+        #for r in rows:
+        #    print(f"{r['month']}: Total buy={r['buys']}    | Total close={r['wins']+r['losses']}  |   Wins={r['wins']}   |   Losses={r['losses']}   |   WinRate={r['win_rate']}")
+        #
+        
         print("----- SUMMARY -----")
         net_profit = round(total_win_money + total_loss_money,2) 
         print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
