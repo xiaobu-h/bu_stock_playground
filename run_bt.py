@@ -6,14 +6,14 @@ from strategy.attack_day.backtest_strategy import AttackReversalStrategy
 from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
 from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
 from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
-from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
+from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
 from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
+ 
 
 import statistics
-
-
+ 
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -38,8 +38,48 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    df_dict = fetch_yahoo_data(symbols, start="2025-06-01", end="2025-08-27")
-    from collections import Counter
+    df_dict = fetch_yahoo_data(symbols, start="2024-11-01", end="2025-08-30")  # 近期 2025 
+    total_trading_days=164
+    
+    '''
+    
+       df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
+    total_trading_days=164
+    
+       df_dict = fetch_yahoo_data(symbols, start="2025-06-01", end="2025-08-27")  # 近期 近三个月
+    total_trading_days=63
+    
+    
+    df_dict = fetch_yahoo_data(symbols, start="2020-01-01", end="2025-06-01")  # 长期
+    total_trading_days=1343  # 65 个月
+    
+      
+    
+    
+    df_dict = fetch_yahoo_data(symbols, start="2022-01-01", end="2022-12-30")  # 熊市 2022
+    total_trading_days=250 #  12 个月   
+    
+    
+    df_dict = fetch_yahoo_data(symbols, start="2025-02-24", end="2025-04-07")  # 熊市 2025关税
+    total_trading_days=30
+
+        df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
+    total_trading_days=164
+
+    
+    
+    
+    
+ df_dict = fetch_yahoo_data(symbols, start="2025-01-01", end="2025-08-28")  # 近期 2025 
+    total_trading_days=164
+
+    
+    
+    df_dict = fetch_yahoo_data(symbols, start="2022-10-11", end="2025-02-20")  # 牛市 2022 - 2025
+    total_trading_days=585
+    '''
+    
+    
     
     all_bars = []
     all_days = []
@@ -118,61 +158,34 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         strat = results[0]                     # 拿到策略实例
         analysis = strat.analyzers.td.get_analysis()
         all_bars.extend(analysis["bars"])
-        all_days.extend(analysis["days"])
-        analysis = results[0].analyzers.trades.get_analysis()
-        summary['total_trades'] += analysis.get('total', {}).get('total', 0)
-        summary['wins'] += analysis.get('won', {}).get('total', 0)
-        summary['losses'] += analysis.get('lost', {}).get('total', 0)
-        summary['pnl_net'] += analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
-        summary['pnl_won'] += analysis.get('won', {}).get('pnl', {}).get('total', 0.0)
-        summary['pnl_lost'] += analysis.get('lost', {}).get('pnl', {}).get('total', 0.0)
-        
+        all_days.extend(analysis["days"]) 
+
         #cerebro.plot()
         
  
     if all_bars:
         avg_bars = statistics.mean(all_bars)
         avg_days = statistics.mean(all_days)
+        print("===== 平均持仓时间统计 =====")
         print(f"跨全部 symbol 的平均持仓（bar）：{avg_bars:.2f}")
         print(f"跨全部 symbol 的平均持仓（天）： {avg_days:.2f}")
-        
-        print("Max money usage:")
-        print(  avg_bars * summary['total_trades'] * 5000 / 63)
-        print("月转化:")
-        print(summary['pnl_net'] / (avg_bars * summary['total_trades'] * 5000 / 63) * 32)
     else:
         print("没有任何已平仓交易，无法计算平均持仓。")
     
- 
-        
+    return avg_bars,total_trading_days
 
- 
 
-def print_summary():
-    total = summary['total_trades']
-    wins = summary['wins']
-    losses = summary['losses']
-    pnl_net = summary['pnl_net']
-    pnl_won = summary['pnl_won']
-    pnl_lost = summary['pnl_lost']
-    win_rate = (wins / total * 100) if total else 0
-
-    print(
-        f"[SUMMARY] Backtest Results:\n"
-        f"  Total Trades: {total} | Wins: {wins} | Losses: {losses} | Win Rate: {win_rate:.2f}%\n"
-        f"  Total Win PnL: {pnl_won:.2f} | Total Loss PnL: {pnl_lost:.2f} | Net PnL: {pnl_net:.2f}"
-    )
-
- 
 # manually run the backtest
 
 if __name__ == "__main__":
     #run(TEST_SYMBOLS)
     #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
-    #run(["IBM" , "ORCL", "V" , "META", "AMZN", "MSTR"])  #5:11    3:3
+    avg_bars,total_trading_days = run(FINAL_SYMBOLS) 
+    total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
+    print("=====  Max money usage: ===== ")
+    max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING / total_trading_days
+    print( max_avg_money)
     
-    #run(["SPY", "NFLX", "PYPL", "PLTR", "COIN", "HOOD"  ])  #12:5    8:1
-    
-    #run(["KO", "OXY", "TSM", "COST", "XLK", "ADBE" , "CRM", "INTU", "AVGO", "QCOM", "TXN", "LRCX", "AMAT", "MU", "ASML",  "PYPL" ])  
-    run(FINAL_SYMBOLS) 
-    print_summary()
+    print("=====  月转化率: ===== ")
+    print(  net_profit / max_avg_money / 10 )    
+       
