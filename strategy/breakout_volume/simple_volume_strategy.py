@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict
 import csv 
 
-ONE_TIME_SPENDING = 20000  # 每次买入金额
+ONE_TIME_SPENDING = 30000  # 每次买入金额
 
 class SimpleVolumeLogic:
     def __init__(self, data, volume_multiplier, min_total_increse_percent):
@@ -39,7 +39,7 @@ class SimpleVolumeLogic:
             #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
             return False
         
-        if  min(self.data.low[0] , self.data.low[-1] ) < close * 0.93:    # 止损点（昨天和今天的最低点）没有大于7%
+        if  min(self.data.low[0] , self.data.low[-1] ) < close * 0.93:    #  昨天 or 今天的最低点 没有低于7%   《--神来之笔--》
             return False
         
         return True
@@ -50,8 +50,8 @@ class SimpleVolumeStrategy(bt.Strategy):
 
     
     params = (
-        ('volume_multiplier', 1.8), 
-        ('min_total_increse_percent', 0.015),  # 最小涨幅 
+        ('volume_multiplier', 2), 
+        ('min_total_increse_percent', 0.013),  # 最小涨幅 
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
@@ -84,7 +84,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         
         if  self.position:  
             
-            rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
+            rate = 1.013 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
             size = int(ONE_TIME_SPENDING / self.entry_price)
             
                 
@@ -117,7 +117,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 # ==============================================
                 self.close()
                 return
-             
+            '''
             
             # 强制平仓：持仓超过5个交易日
             if len( pd.bdate_range(start=self.entry_date, end=self.data.datetime.date(0)) ) > 5:
@@ -138,12 +138,12 @@ class SimpleVolumeStrategy(bt.Strategy):
                 
                 self.close()
                 return
- 
+ '''
         if self.buy_logic.check_buy_signal():
             
-            #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
-               #                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
-             #   return
+            if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+                                                                   "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+               return
             logger = logging.getLogger(__name__)
             logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
             self.signal_today = True
@@ -155,7 +155,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 self.order = self.buy()
                 self.day0_increses = self.data.close[0] - self.data.open[0]
                 self.entry_price = self.data.close[0]
-                self.stop_price = min(self.data.low[0] , self.data.low[-1] )  
+                self.stop_price =(self.data.close[0] + self.data.open[0]) * 0.5  #= min(self.data.low[0] , self.data.low[-1] )   # 止损点 
                 self.entry_date = self.data.datetime.date(0)
                     
     @classmethod
