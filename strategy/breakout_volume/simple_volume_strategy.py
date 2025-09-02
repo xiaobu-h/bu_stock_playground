@@ -31,7 +31,7 @@ class SimpleVolumeLogic:
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
 
-        if abs(close - open_) <  open_ *  self.min_total_increse_percent:     #今日收大于 1.5% 的阳线
+        if abs(close - open_) <  open_ *  self.min_total_increse_percent:     #涨幅 1.5%
             #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
             return False
         
@@ -70,11 +70,13 @@ class SimpleVolumeStrategy(bt.Strategy):
             min_total_increse_percent=self.p.min_total_increse_percent,
             volume_multiplier=self.p.volume_multiplier
         ) 
-        
-        self.monthly_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+         
+        self.daily_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
 
     def next(self):
-        dt = self.data.datetime.date(0).strftime("%Y-%m")
+       
+        dtd = self.data.datetime.date(0).strftime("%Y-%m-%d")
+        
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
                return
@@ -84,13 +86,16 @@ class SimpleVolumeStrategy(bt.Strategy):
             
             rate = 1.015 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
             size = int(ONE_TIME_SPENDING / self.entry_price)
+            
+                
             # 止盈
             if  self.data.high[0]  > self.entry_price * rate:
+                 
                 # ==================== 统计 ====================
-                self.monthly_stats[dt]["wins"] += 1
-                SimpleVolumeStrategy.global_stats[dt]["wins"] += 1  # 累加到全局
-                self.monthly_stats[dt]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
-                SimpleVolumeStrategy.global_stats[dt]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                self.daily_stats[dtd]["wins"] += 1
+                SimpleVolumeStrategy.global_stats[dtd]["wins"] += 1  # 累加到全局
+                self.daily_stats[dtd]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                SimpleVolumeStrategy.global_stats[dtd]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
                 # ==============================================
                 self.close()
                 return
@@ -99,54 +104,58 @@ class SimpleVolumeStrategy(bt.Strategy):
             # 止损
             if self.data.low[0] < self.stop_price:  
                 
-                #if( dt == '2024-12'):
-                #    print(f" Close LOSS {self.p.symbol} on {self.data.datetime.date(0)}")
+              #  if( dtd == '2025-06-24'   ):
+               #     print(f" Close LOSS {self.p.symbol} on {self.data.datetime.date(0)}")
+               #    print(f" Entry price {self.entry_price}  Stop price {self.stop_price}  Current low {self.data.low[0]} ")
+                #    print(size)
                 # ==================== 统计 ====================
-                self.monthly_stats[dt]["losses"] += 1
-                SimpleVolumeStrategy.global_stats[dt]["losses"] += 1
+                self.daily_stats[dtd]["losses"] += 1
+                SimpleVolumeStrategy.global_stats[dtd]["losses"] += 1
                 
-                self.monthly_stats[dt]["Loss$"] -= size * (self.entry_price - self.stop_price)
-                SimpleVolumeStrategy.global_stats[dt]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                self.daily_stats[dtd]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                SimpleVolumeStrategy.global_stats[dtd]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 # ==============================================
                 self.close()
                 return
              
-            '''
-            if len( pd.bdate_range(start=self.entry_date, end=self.data.datetime.date(0)) ) >= 7:
+            
+            # 强制平仓：持仓超过5个交易日
+            if len( pd.bdate_range(start=self.entry_date, end=self.data.datetime.date(0)) ) > 5:
                 
                 # ==================== 统计 ====================
                 if self.data.close[0] > self.entry_price:
-                    self.monthly_stats[dt]["wins"] += 1
-                    SimpleVolumeStrategy.global_stats[dt]["wins"] += 1  # 累加到全局
-                    self.monthly_stats[dt]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
-                    SimpleVolumeStrategy.global_stats[dt]["Win$"] += (self.data.close[0] - self.entry_price) * size
+                    self.daily_stats[dtd]["wins"] += 1
+                    SimpleVolumeStrategy.global_stats[dtd]["wins"] += 1   
+                    self.daily_stats[dtd]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
+                    SimpleVolumeStrategy.global_stats[dtd]["Win$"] += (self.data.close[0] - self.entry_price) * size
                 else:
-                    self.monthly_stats[dt]["losses"] += 1
-                    SimpleVolumeStrategy.global_stats[dt]["losses"] += 1
+                    self.daily_stats[dtd]["losses"] += 1
+                    SimpleVolumeStrategy.global_stats[dtd]["losses"] += 1
                     size = int(ONE_TIME_SPENDING / self.entry_price)
-                    self.monthly_stats[dt]["Loss$"] -= size * (self.entry_price - self.data.close[0])
-                    SimpleVolumeStrategy.global_stats[dt]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                    self.daily_stats[dtd]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                    SimpleVolumeStrategy.global_stats[dtd]["Loss$"] -= size * (self.entry_price - self.data.close[0])
                 # ==============================================
                 
                 self.close()
                 return
- '''
+ 
         if self.buy_logic.check_buy_signal():
             
-            if self.data.datetime.date(0).strftime("%Y-%m-%d") == "2024-12-20":
-                return
+            #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+               #                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+             #   return
             logger = logging.getLogger(__name__)
             logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
             self.signal_today = True
             if not self.p.only_scan_last_day:  # 回测扫描
                 # ==================== 统计 ====================
-                self.monthly_stats[dt]["buys"] += 1
-                SimpleVolumeStrategy.global_stats[dt]["buys"] += 1
+                self.daily_stats[dtd]["buys"] += 1
+                SimpleVolumeStrategy.global_stats[dtd]["buys"] += 1
                 # ==============================================
                 self.order = self.buy()
                 self.day0_increses = self.data.close[0] - self.data.open[0]
                 self.entry_price = self.data.close[0]
-                self.stop_price = min(self.data.low[0] , self.data.low[-1] ) 
+                self.stop_price = min(self.data.low[0] , self.data.low[-1] )  
                 self.entry_date = self.data.datetime.date(0)
                     
     @classmethod

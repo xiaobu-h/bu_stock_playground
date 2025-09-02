@@ -8,9 +8,7 @@ import pandas_market_calendars as mcal
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
-from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy  
-from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
-from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
+from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy   
 from strategy.attack_day.scan import AttackReversalSignalScan
 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
@@ -111,13 +109,7 @@ def main():
         except Exception as e:
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
-        try:
-            if scan_stock(symbol,df, BreakoutVolumeStrategy):
-                alert = True 
-                msg = f"Buy Signal [Breakout Volume]: {symbol}"
-                messages.append(msg) 
-        except Exception as e:
-            logging.warning(f"Error Scanning [Breakout Volume] for {symbol}: {e}")
+   
         
         try:  
             if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):

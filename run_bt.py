@@ -3,9 +3,7 @@ import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
 from strategy.attack_day.backtest_strategy import AttackReversalStrategy
-from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy
-from strategy.bl_new_high_w_volume.strategy import BollingerNewHighWithVolumeBreakoutStrategy
-from strategy.breakout_volume.strategy import BreakoutVolumeStrategy
+from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
@@ -38,19 +36,15 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    
-    start="2020-01-01"
-    end="2025-06-01"   # 长期  # 65 个月
-    
-    '''
     start="2025-01-01"
     end="2025-08-28"   # 近期 2025   8个月
+    '''
+ start="2020-01-01"
+    end="2025-06-01"   # 长期  # 65 个月
     
     
-    start="2025-06-01"
+      start="2025-06-01"
     end="2025-08-27"  # 近期  近三个月
-    
-
     
       
     start="2022-01-01"
@@ -179,5 +173,5 @@ if __name__ == "__main__":
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")
-    print(  net_profit / max_avg_money / 65 )    
+    print(  net_profit / max_avg_money / 8 )    
        
