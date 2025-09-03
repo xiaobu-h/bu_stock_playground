@@ -1,54 +1,36 @@
 import backtrader as bt
 import pandas as pd
 
+import csv 
+from collections import defaultdict
+
+ONE_TIME_SPENDING_ATTACK = 20000  # 每次买入金额
+
+
 class AttackReversalStrategy(bt.Strategy):
+    
+    global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+
     params = (
-        ('boll_period', 20),
-        ('boll_devfactor', 2),
         ('lookback_days', 5),        # 连续阴线数量
-        ('volume_multiplier', 1.5),  # 放量倍数
-        ('take_profit', 1.10),  # 止盈目标（10%）
+        ('volume_multiplier', 1.35),  # 放量倍数
+        ('take_profit', 1.045),   # 止盈目标（10%）
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
-        ('trailing_stop_pct', 0.05),  # 跟踪止损百分比（5%）
-        ('down_pct', 0.12),  # 下跌百分比（12%）
-    )
+    )     
 
     def __init__(self):
-        self.bb = bt.indicators.BollingerBands(
-            self.data.close, period=self.p.boll_period, devfactor=self.p.boll_devfactor)
+        
         self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback_days)
-        self.kdj = bt.ind.Stochastic(
-            self.data, period=9, period_dfast=3, period_dslow=3
-        )
+ 
         self.stop_loss_price = 0.0
         self.buy_price = 0.0
-        self.net = 0.0
-        self.size = 0
-        self.has_position = False
-        #self.profit_rate = self.p.take_profit
-        rate = self.get_profit_rate_by_hv(self.p.symbol)
-        if rate is None:
-            self.profit_rate = self.p.take_profit
-        else:
-            self.profit_rate = rate
+        self.profit_rate = self.p.take_profit
+        self.daily_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+
        
        
-       # 修改这个也需要修改 daily_monitor.py 中的 get_profit_rate_by_hv 方法
-    @staticmethod 
-    def get_profit_rate_by_hv(symbol, csv_path="hv_30d_results.csv"):
-        df = pd.read_csv(csv_path)
-        
-        row = df[df["Symbol"].str.upper() == symbol.upper()]
-        if not row.empty:
-            if row.iloc[0]["HV_30d"] > 0.7:
-                return 1.20
-            elif row.iloc[0]["HV_30d"] > 0.5:
-                return 1.18
-            elif row.iloc[0]["HV_30d"] > 0.3:      
-                return 1.15
-        
-        return 1.1
+ 
         
     def is_attack_setup(self):
         date = self.data.datetime.date(0)
@@ -76,85 +58,102 @@ class AttackReversalStrategy(bt.Strategy):
     
 
     def next(self):
-        
+        date = self.data.datetime.date(0).strftime("%Y-%m-%d")
+       
+       
+        # ======== 买入 ===========
         if not self.position:
-            if self.is_attack_setup():
-                self.has_position = True
+            if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+                                                                   "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+               return
+            
+            if self.is_attack_setup(): 
                 self.buy_price = self.data.close[0]
-                size = int(5000 / self.buy_price)
-                if size > 0:
-                    self.order = self.buy(size=size)  
-                    self.size += size
+                self.stop_loss_price = self.data.low[0]  * 0.98          # 竹笋点
+                self.buy()  
+                   
+                # ==================== 统计 ====================
+                self.daily_stats[date]["buys"] += 1
+                AttackReversalStrategy.global_stats[date]["buys"] += 1
+                # ==============================================
                 
-                self.stop_loss_price = self.data.low[0]* 0.95
-                
-                self.net -= (self.buy_price * self.size)
+ 
         if self.position:
+            
+             # ======== 止盈 ===========
             if   (self.data.high[0] >= self.buy_price * self.profit_rate) :
-                
-                    
-                #print(f"[TAKE PROFIT] {self.data.close[0] * self.size}")
-                
-                self.net += (self.buy_price * self.profit_rate * self.size)
-                #print("actural net: ", self.buy_price * self.p.take_profit * self.size)
-                self.buy_price = 0
-                self.size = 0
-                self.has_position = False
+                # ==================== 统计 ====================
+                self.daily_stats[date]["wins"] += 1
+                AttackReversalStrategy.global_stats[date]["wins"] += 1  # 累加到全局
+                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profit_rate - 1)
+                AttackReversalStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profit_rate - 1)
+                # ==============================================
+                 
                 self.close()
+                return
                 
-                # 止损：跌破买入日最低价
-            if   (self.data.low[0] < self.stop_loss_price):
-                #print(f"[STOP LOSS] {self.data.close[0] * self.size}")
-                
-                self.net += (self.stop_loss_price * self.size)
-                
-                #print("actural net: ", self.stop_loss_price * self.size)
-                self.buy_price = 0
-                self.stop_loss_price = 0
-                self.size = 0
-                self.has_position = False
+            # ======= 止损 ===========
+            if   (self.data.low[0] < self.stop_loss_price): 
+              
+                # ==================== 统计 ====================
+                self.daily_stats[date]["losses"] += 1
+                AttackReversalStrategy.global_stats[date]["losses"] += 1
+                size = int(ONE_TIME_SPENDING_ATTACK / self.buy_price)
+                self.daily_stats[date]["Loss$"] -= size * (self.buy_price - self.stop_loss_price)
+                AttackReversalStrategy.global_stats[date]["Loss$"] -= size * (self.buy_price - self.stop_loss_price)
+                # ==============================================
                 self.close()
+                return
             
-                
-            # ❌【BAD】【BAD】【BAD】 根据backtest， 跌破买入价不如买入日最底下效果好
+    
+ 
             
-            # 止损：跌破买入价
-            #elif current_price < self.buy_price * 0.98:
-            #    self.close()
-            #    self.buy_price = None
-            
-            # ❌【BAD】【BAD】【BAD】 根据backtest， 跟踪止损不好 
+    @classmethod
+    def export_global_csv(cls, filepath: str):
 
-            # 跟踪止损: 当最高价已经上涨超过买入价的设定百分比后，若价格回落超过该百分比则止损
-            #elif ( self.high_watermark >= self.buy_price * (1 + self.p.trailing_stop_pct) and current_price <= self.high_watermark * (1 - self.p.trailing_stop_pct)):
-            #    self.close()
-            #    self.buy_price = None
-            #    self.high_watermark = None
+        rows = []
+        total_wins = 0
+        total_losses = 0
+        total_buys = 0
+        total_win_money = 0
+        total_loss_money = 0
 
-    def stop(self):
-        analysis = self.analyzers.trades.get_analysis()
-        #print (self.net)
-        #print (analysis.get('pnl', {}).get('net', {}).get('total', 0.0))
-        if (self.has_position):
-            self.net += (self.buy_price * self.size)
-            
-        #print(self.net - analysis.get('pnl', {}).get('net', {}).get('total', 0.0))
-        #if (self.net - analysis.get('pnl', {}).get('net', {}).get('total', 0.0) < -1000): 
-        #print(self.p.symbol)
-        if self.p.printlog:
-            try:
-                analysis = self.analyzers.trades.get_analysis()
-                total = analysis.get('total', {}).get('total', 0)
-                won = analysis.get('won', {}).get('total', 0)
-                lost = analysis.get('lost', {}).get('total', 0)
-                pnl_net = analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
-                win_rate = (won / total * 100) if total else 0
-            except Exception as e:
-                print(f"[ERROR] Analyzer error for {self.p.symbol}: {e}")
-                total = won = lost = 0
-                pnl_net = win_rate = 0
+        for month in sorted(cls.global_stats.keys()):
+            wins = cls.global_stats[month]["wins"]
+            losses = cls.global_stats[month]["losses"]
+            trades = wins + losses
+            win_rate = (wins / trades) if trades > 0 else 0.0
 
-            print(
-                f"[STOP] [{self.p.symbol}] Final Value: {self.broker.getvalue():.2f} "
-                f"Trades: {total} | Wins: {won} | Losses: {lost} | Win Rate: {win_rate:.2f}% | Net PnL: {pnl_net:.2f}"
-            )
+            rows.append({
+                "month": month,
+                "wins": wins,
+                "losses": losses,
+                "win_rate": round(win_rate, 3),  # 保留4位小数，方便后续报表
+                "closed_trades": trades,
+                "buys": cls.global_stats[month]["buys"],
+                "net_earn$": round(cls.global_stats[month]["Win$"]+ cls.global_stats[month]["Loss$"],2),
+    
+            })
+
+            total_wins += wins
+            total_losses += losses
+            total_buys += cls.global_stats[month]["buys"]
+            total_win_money += cls.global_stats[month]["Win$"]
+            total_loss_money += cls.global_stats[month]["Loss$"]
+
+        # 写 CSV
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["month", "wins", "losses", "win_rate", "closed_trades", "buys", "net_earn$"])
+            writer.writeheader()
+            writer.writerows(rows)
+
+        # 控制台 summary
+        
+        print("----- SUMMARY -----")
+        net_profit = round(total_win_money + total_loss_money,2) 
+        print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
+
+        print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0.0:.2f}")
+
+        return total_buys, net_profit
+    

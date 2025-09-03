@@ -2,7 +2,7 @@
 import backtrader as bt
 import pandas as pd
 from backtest_fetcher import fetch_yahoo_data
-from strategy.attack_day.backtest_strategy import AttackReversalStrategy
+from strategy.attack_day.backtest_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
 from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
@@ -38,11 +38,14 @@ summary = {
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     start="2025-01-01"
     end="2025-08-28"   # 近期 2025   8个月
-    
     '''
- start="2020-01-01"
+     start="2022-10-11"
+    end="2025-02-20"     # 牛市 2022 - 2025
+    
+    
+     start="2020-01-01"
     end="2025-06-01"   # 长期  # 65 个月
-        
+  
       start="2025-06-01"
     end="2025-08-27"  # 近期  近三个月
     
@@ -79,20 +82,15 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             symbol=symbol, 
             only_scan_last_day=False
         )
-        
-        
         """ 
+       
         
          cerebro.addstrategy(
             AttackReversalStrategy,
-            boll_period=20,
-            boll_devfactor=1.5,
-            lookback_days=5,
-            volume_multiplier= 1.3,
-            take_profit= 1.15,
             printlog=False,
             symbol=symbol
         )
+        
         
         
         cerebro.addstrategy(
@@ -106,17 +104,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         )
         
         
-        cerebro.addstrategy(
-            BollingerNewHighWithVolumeBreakoutStrategy,
-            lookback_days=3,
-            volume_multiplier=1.1,
-            volume_max=3,
-            min_increse_percent=0.035,
-            take_profit=1.021,
-            printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
-        )
+ 
      
         cerebro.addstrategy(
             BreakoutVolumeStrategy,
@@ -166,10 +154,12 @@ if __name__ == "__main__":
     
     
     
-    
     total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
+    
+    #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
+ 
     print("=====  Max money usage: ===== ")
-    max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING / total_trading_days
+    max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING/ total_trading_days
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")

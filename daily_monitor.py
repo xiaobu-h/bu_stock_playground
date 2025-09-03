@@ -94,8 +94,7 @@ def main():
         try: 
             if scan_stock(symbol,df, SimpleVolumeStrategy ):
                 alert = True 
-                pr = get_profit_rate_by_hv_for_sample_high_volume(symbol)
-                msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {pr}%"
+                msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: 1.5% or 2.5%"
                 messages.append(msg) 
         except Exception as e:
             logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
@@ -103,14 +102,12 @@ def main():
         try:           
             if scan_stock(symbol, df, AttackReversalSignalScan):
                 alert = True 
-                pr = get_profit_pct_by_hv(symbol)
-                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {pr}%"
+                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: 4.5%"
                 messages.append(msg) 
         except Exception as e:
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
-   
-        
+        '''
         try:  
             if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
                 alert = True 
@@ -118,7 +115,7 @@ def main():
                 messages.append(msg)
         except Exception as e:
             logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
-        
+        '''        
  
     if ONLY_SCAN_LAST_DAY:    # send summary only when scanning last day
         if alert: 
@@ -129,42 +126,7 @@ def main():
             send_telegram_message(f"No signals today.")
      
        
-       
-# 修改这个也需要修改 backtest_strateby.py 中的 get_profit_rate_by_hv 方法         
-        
-@staticmethod 
-def get_profit_pct_by_hv(symbol, csv_path="hv_30d_results.csv"):
-    df = pd.read_csv(csv_path)
-    try: 
-        row = df[df["Symbol"].str.upper() == symbol.upper()]
-        if not row.empty:
-            if row.iloc[0]["HV_30d"] > 0.7:
-                return 20
-            elif row.iloc[0]["HV_30d"] > 0.5:
-                return 18
-            elif row.iloc[0]["HV_30d"] > 0.3:      
-                return 15 
-            return 10
-    
-    except Exception as e:
-        logging.warning(f"Error getting profit rate for {symbol}: {e}")
-        return 10   
-
-@staticmethod 
-def get_profit_rate_by_hv_for_sample_high_volume(symbol, csv_path="hv_30d_results.csv"):
-    df = pd.read_csv(csv_path)
-    try:
-        row = df[df["Symbol"].str.upper() == symbol.upper()]
-        if not row.empty:
-            if row.iloc[0]["HV_30d"] > 0.5:
-                return 20
-            elif row.iloc[0]["HV_30d"] > 0.3:      
-                return 9
-            return 5
-    except Exception as e:
-        logging.warning(f"Error getting profit rate for {symbol}: {e}")
-        return 5
-
+ 
  
 
 def is_trading_day():

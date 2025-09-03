@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict
 import csv 
 
-ONE_TIME_SPENDING = 30000  # 每次买入金额
+ONE_TIME_SPENDING = 20000  # 每次买入金额
 
 class SimpleVolumeLogic:
     def __init__(self, data, volume_multiplier, min_total_increse_percent):
@@ -27,11 +27,11 @@ class SimpleVolumeLogic:
             #print(f"[{self.data.datetime.date(0)}]Close is less than open.")
             return False
         
-        if (volume < self.vol_sma3[0] * self.volume_multiplier) & (volume < self.vol_sma10[0] * self.volume_multiplier): #交易量大于1.8倍放量 (大于3天/10天均值）
+        if (volume < self.vol_sma3[0] * self.volume_multiplier) & (volume < self.vol_sma10[0] * self.volume_multiplier): #交易量大于2倍放量 (大于3天/10天均值）
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
 
-        if abs(close - open_) <  open_ *  self.min_total_increse_percent:     #涨幅 1.5%
+        if abs(close - open_) <  open_ *  self.min_total_increse_percent:    #涨幅 1.3%
             #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
             return False
         
@@ -75,7 +75,7 @@ class SimpleVolumeStrategy(bt.Strategy):
 
     def next(self):
        
-        dtd = self.data.datetime.date(0).strftime("%Y-%m-%d")
+        date = self.data.datetime.date(0).strftime("%Y-%m-%d")
         
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
@@ -92,10 +92,10 @@ class SimpleVolumeStrategy(bt.Strategy):
             if  self.data.high[0]  > self.entry_price * rate:
                  
                 # ==================== 统计 ====================
-                self.daily_stats[dtd]["wins"] += 1
-                SimpleVolumeStrategy.global_stats[dtd]["wins"] += 1  # 累加到全局
-                self.daily_stats[dtd]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
-                SimpleVolumeStrategy.global_stats[dtd]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                self.daily_stats[date]["wins"] += 1
+                SimpleVolumeStrategy.global_stats[date]["wins"] += 1  # 累加到全局
+                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                SimpleVolumeStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
                 # ==============================================
                 self.close()
                 return
@@ -104,16 +104,13 @@ class SimpleVolumeStrategy(bt.Strategy):
             # 止损
             if self.data.low[0] < self.stop_price:  
                 
-              #  if( dtd == '2025-06-24'   ):
-               #     print(f" Close LOSS {self.p.symbol} on {self.data.datetime.date(0)}")
-               #    print(f" Entry price {self.entry_price}  Stop price {self.stop_price}  Current low {self.data.low[0]} ")
-                #    print(size)
+   
                 # ==================== 统计 ====================
-                self.daily_stats[dtd]["losses"] += 1
-                SimpleVolumeStrategy.global_stats[dtd]["losses"] += 1
+                self.daily_stats[date]["losses"] += 1
+                SimpleVolumeStrategy.global_stats[date]["losses"] += 1
                 
-                self.daily_stats[dtd]["Loss$"] -= size * (self.entry_price - self.stop_price)
-                SimpleVolumeStrategy.global_stats[dtd]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 # ==============================================
                 self.close()
                 return
@@ -124,16 +121,16 @@ class SimpleVolumeStrategy(bt.Strategy):
                 
                 # ==================== 统计 ====================
                 if self.data.close[0] > self.entry_price:
-                    self.daily_stats[dtd]["wins"] += 1
-                    SimpleVolumeStrategy.global_stats[dtd]["wins"] += 1   
-                    self.daily_stats[dtd]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
-                    SimpleVolumeStrategy.global_stats[dtd]["Win$"] += (self.data.close[0] - self.entry_price) * size
+                    self.daily_stats[date]["wins"] += 1
+                    SimpleVolumeStrategy.global_stats[date]["wins"] += 1   
+                    self.daily_stats[date]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
+                    SimpleVolumeStrategy.global_stats[date]["Win$"] += (self.data.close[0] - self.entry_price) * size
                 else:
-                    self.daily_stats[dtd]["losses"] += 1
-                    SimpleVolumeStrategy.global_stats[dtd]["losses"] += 1
+                    self.daily_stats[date]["losses"] += 1
+                    SimpleVolumeStrategy.global_stats[date]["losses"] += 1
                     size = int(ONE_TIME_SPENDING / self.entry_price)
-                    self.daily_stats[dtd]["Loss$"] -= size * (self.entry_price - self.data.close[0])
-                    SimpleVolumeStrategy.global_stats[dtd]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                    self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.data.close[0])
+                    SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.data.close[0])
                 # ==============================================
                 
                 self.close()
@@ -149,8 +146,8 @@ class SimpleVolumeStrategy(bt.Strategy):
             self.signal_today = True
             if not self.p.only_scan_last_day:  # 回测扫描
                 # ==================== 统计 ====================
-                self.daily_stats[dtd]["buys"] += 1
-                SimpleVolumeStrategy.global_stats[dtd]["buys"] += 1
+                self.daily_stats[date]["buys"] += 1
+                SimpleVolumeStrategy.global_stats[date]["buys"] += 1
                 # ==============================================
                 self.order = self.buy()
                 self.day0_increses = self.data.close[0] - self.data.open[0]
@@ -160,12 +157,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                     
     @classmethod
     def export_global_csv(cls, filepath: str):
-        """
-        将 global_stats 导出为 CSV，列为：
-        month, wins, losses, win_rate
-        其中 win_rate = wins / (wins + losses)，若当月无交易则为 0.
-        导出后在控制台打印 total wins / total losses 的汇总。
-        """
+       
         rows = []
         total_wins = 0
         total_losses = 0
@@ -203,12 +195,6 @@ class SimpleVolumeStrategy(bt.Strategy):
             writer.writerows(rows)
 
         # 控制台 summary
-        
-        #print("===== 按月统计 =====")
-        #for r in rows:
-        #    print(f"{r['month']}: Total buy={r['buys']}    | Total close={r['wins']+r['losses']}  |   Wins={r['wins']}   |   Losses={r['losses']}   |   WinRate={r['win_rate']}")
-        #
-        
         print("----- SUMMARY -----")
         net_profit = round(total_win_money + total_loss_money,2) 
         print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
@@ -219,10 +205,4 @@ class SimpleVolumeStrategy(bt.Strategy):
     
     
     
-    
-    
-    
-    @classmethod
-    def reset_global(cls):
-        """如需多轮运行/多批次测试前清空全局统计，可调用此方法。"""
-        cls.global_stats.clear()
+     
