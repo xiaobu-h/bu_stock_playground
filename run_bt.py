@@ -36,13 +36,16 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    start="2025-01-01"
-    end="2025-08-28"   # 近期 2025   8个月
+    
+    start="2024-11-01"
+    end="2025-08-30"   # 近10个月
     '''
-     start="2022-10-11"
-    end="2025-02-20"     # 牛市 2022 - 2025
+     
+      start="2025-01-01"
+    end="2025-08-28"   # 近期 2025   8个月
     
-    
+    start="2022-10-11"
+    end="2025-02-20"     # 牛市 2022 - 2025  
      start="2020-01-01"
     end="2025-06-01"   # 长期  # 65 个月
   
@@ -77,46 +80,32 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
+            AttackReversalStrategy,
+            printlog=False,
+            symbol=symbol
+        ) 
+   
+        """   cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
             symbol=symbol, 
             only_scan_last_day=False
         )
-        """ 
-       
-        
-         cerebro.addstrategy(
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol
-        )
-        
-        
-        
         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
-            lookback_days=8,
-            volume_multiplier=1.25,
-            take_profit=1.13,
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
         )
         
-        
- 
-     
-        cerebro.addstrategy(
-            BreakoutVolumeStrategy,
-            lookback_days=12,
-            volume_multiplier=1.7,
-            take_profit=1.05,
-            min_total_increse_percent=0.03,
+         cerebro.addstrategy(
+            SimpleVolumeStrategy,
             printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
+            symbol=symbol, 
+            only_scan_last_day=False
         )
         
+   
         
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
@@ -154,14 +143,16 @@ if __name__ == "__main__":
     
     
     
-    total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
+    #total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
     
-    #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
+    total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
+    
+    #total_buys, net_profit = BollingerVolumeBreakoutStrategy.export_global_csv("monthly_winloss.csv")
  
     print("=====  Max money usage: ===== ")
     max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING/ total_trading_days
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")
-    print(  net_profit / max_avg_money / 8 )    
+    print(  net_profit / max_avg_money / 10 )    
        

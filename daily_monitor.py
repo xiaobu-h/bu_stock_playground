@@ -29,7 +29,7 @@ ONLY_SCAN_LAST_DAY = False
 def fetch_recent_data(symbol):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=30)  # load extra data to ensure we have enough for the strategy     
+        start_date = end_date - pd.Timedelta(days=66)  # load extra data to ensure we have enough for the strategy     
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
 
         if df.empty:
@@ -107,7 +107,7 @@ def main():
         except Exception as e:
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
-        '''
+        
         try:  
             if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
                 alert = True 
@@ -115,7 +115,7 @@ def main():
                 messages.append(msg)
         except Exception as e:
             logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
-        '''        
+               
  
     if ONLY_SCAN_LAST_DAY:    # send summary only when scanning last day
         if alert: 

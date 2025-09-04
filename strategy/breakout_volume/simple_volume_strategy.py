@@ -85,7 +85,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         if  self.position:  
             
             rate = 1.013 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
-            size = int(ONE_TIME_SPENDING / self.entry_price)
+            
             
                 
             # 止盈
@@ -108,7 +108,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 # ==================== 统计 ====================
                 self.daily_stats[date]["losses"] += 1
                 SimpleVolumeStrategy.global_stats[date]["losses"] += 1
-                
+                size = int(ONE_TIME_SPENDING / self.entry_price)
                 self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
                 # ==============================================

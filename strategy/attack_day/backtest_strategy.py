@@ -12,9 +12,11 @@ class AttackReversalStrategy(bt.Strategy):
     global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
 
     params = (
-        ('lookback_days', 5),        # 连续阴线数量
+        ('lookback_days', 6),         
         ('volume_multiplier', 1.35),  # 放量倍数
-        ('take_profit', 1.045),   # 止盈目标（10%）
+        ('take_profit', 1.045),   # 止盈目标 
+        ('min_drop_from_5_days_ago', 0.1),  # 累计下跌超过10%
+        ('stop_loss_pct', 0.965),   # 竹笋点
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
     )     
@@ -22,10 +24,8 @@ class AttackReversalStrategy(bt.Strategy):
     def __init__(self):
         
         self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=self.p.lookback_days)
- 
         self.stop_loss_price = 0.0
-        self.buy_price = 0.0
-        self.profit_rate = self.p.take_profit
+        self.buy_price = 0.0 
         self.daily_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
 
        
@@ -43,7 +43,8 @@ class AttackReversalStrategy(bt.Strategy):
         ): 
             return False
 
-        if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < 0.10 and (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < 0.10 ):
+        if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < self.p.min_drop_from_5_days_ago and
+             (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < self.p.min_drop_from_5_days_ago ):
             return False
          
         
@@ -63,13 +64,13 @@ class AttackReversalStrategy(bt.Strategy):
        
         # ======== 买入 ===========
         if not self.position:
-            if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+            if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
                                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
                return
             
             if self.is_attack_setup(): 
                 self.buy_price = self.data.close[0]
-                self.stop_loss_price = self.data.low[0]  * 0.98          # 竹笋点
+                self.stop_loss_price = self.data.low[0]  * self.p.stop_loss_pct       
                 self.buy()  
                    
                 # ==================== 统计 ====================
@@ -81,12 +82,12 @@ class AttackReversalStrategy(bt.Strategy):
         if self.position:
             
              # ======== 止盈 ===========
-            if   (self.data.high[0] >= self.buy_price * self.profit_rate) :
+            if   (self.data.high[0] >= self.buy_price * self.p.take_profit) :
                 # ==================== 统计 ====================
                 self.daily_stats[date]["wins"] += 1
                 AttackReversalStrategy.global_stats[date]["wins"] += 1  # 累加到全局
-                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profit_rate - 1)
-                AttackReversalStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profit_rate - 1)
+                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.p.take_profit - 1)
+                AttackReversalStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.p.take_profit - 1)
                 # ==============================================
                  
                 self.close()

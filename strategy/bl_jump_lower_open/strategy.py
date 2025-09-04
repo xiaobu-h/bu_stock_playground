@@ -1,17 +1,21 @@
 import backtrader as bt
-from datetime import datetime
-import logging
+from datetime import datetime 
 
 from collections import defaultdict
+import csv
+import logging
+
+
+ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
+
 
 class BollingerVolumeBreakoutLogic:
-    def __init__(self, data, lookback_days=10, volume_multiplier=2):
+    def __init__(self, data, lookback_days, volume_multiplier):
         self.data = data
         self.lookback_days = lookback_days
         self.volume_multiplier = volume_multiplier
         self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
         self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=self.lookback_days)
-        self.cash = 50000
         self.balance_by_date = defaultdict(float)
         self.size = 0
         
@@ -23,34 +27,36 @@ class BollingerVolumeBreakoutLogic:
         low_band = self.boll.lines.bot[0]
         volume = self.data.volume[0]
         avg_volume = self.vol_sma[0]
-        if open_ >= low_band:
+        
+        if close <  open_:    # must be a green candle
             return False
         
-        if close < open_:
-            #print(f"[{self.data.datetime.date(0)}]Not a bullish candle.")
+        if (close < low_band)  | (open_ >= low_band ):  # cross over Bollinger low band
             return False
         
-        
-        if ((low_band - open_) / low_band) < 0.01:
-            #print(f"[{self.data.datetime.date(0)}]Jump is too small.")
+        if ((low_band - open_) / low_band) < 0.005:    # 下穿的比较深
             return False
         
-        if volume < avg_volume * self.volume_multiplier:
-            #print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
+        if volume < avg_volume * self.volume_multiplier:   #放量
             return False
-       
-        logging.info(f"[{self.data.datetime.date(0)}] Bollinger Low Jump -{self.p.symbol}!")
+        
+        if (close - self.data.low[-1]) / self.data.low[-1]  > 0.05 :   # 止损太低 - 风险过高
+            return False
+         
         return True
     
 class BollingerVolumeBreakoutStrategy(bt.Strategy):
     params = (
-        ('lookback_days', 7),
-        ('volume_multiplier', 2),
+        ('lookback_days', 10),
+        ('volume_multiplier', 1.3),
         ('only_scan_last_day', True),
-        ('take_profit', 1.10),
+        ('take_profit', 1.026),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
     )
+    
+    global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+
 
     def __init__(self):
         self.signal_today = False
@@ -60,12 +66,13 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             self.data,
             lookback_days=self.p.lookback_days,
             volume_multiplier=self.p.volume_multiplier
-        )
-        self.cash = 50000
-        self.balance_by_date = defaultdict(float)
-        self.size = 0
+        )   
+        self.daily_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+
 
     def next(self):
+        date = self.data.datetime.date(0).strftime("%Y-%m-%d")
+        
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
                return
@@ -75,62 +82,100 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             high = self.data.high[0]
             low = self.data.low[0]
             if high >= self.entry_price * (self.p.take_profit):
-                sell= self.entry_price * (self.p.take_profit) * self.size
-                self.log_balance( sell)
-                self.close()
-                self.log_balance(self.broker.getvalue() - self.cash)
-                #print(f"[{self.data.datetime.date(0)}] ✅ Take profit hit: High {high:.2f} ≥ Target {(self.entry_price * 1.10):.2f}")
                 
+                # ==================== 统计 ====================
+                self.daily_stats[date]["wins"] += 1
+                BollingerVolumeBreakoutStrategy.global_stats[date]["wins"] += 1  # 累加到全局
+                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (self.p.take_profit - 1)
+                BollingerVolumeBreakoutStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (self.p.take_profit - 1)
+                
+
+                self.close()
                 return
             if low < self.stop_price:
-                self.log_balance( self.stop_price * self.size)
+                
+                size = int(ONE_TIME_SPENDING_BOLLINGER / self.entry_price)
+                if self.data.datetime.date(0).strftime("%Y-%m-%d") in[ "2025-04-08" , "2025-04-16"]:
+                    print ("stop hit on ", self.data.datetime.date(0).strftime("%Y-%m-%d") , " for ", self.p.symbol)
+                    print(size * (self.entry_price - self.stop_price))
+                    
+                
+                # ==================== 统计 ====================
+                self.daily_stats[date]["losses"] += 1
+                BollingerVolumeBreakoutStrategy.global_stats[date]["losses"] += 1
+                
+                self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                BollingerVolumeBreakoutStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                # ==============================================
+                 
                 self.close()
-                #print(f"[{self.data.datetime.date(0)}] ❌ Stop loss hit: Low {low:.2f} < Stop {self.stop_price:.2f}")
                 return
 
         if self.buy_logic.check_buy_signal():
-            
-            if self.p.only_scan_last_day:
-                self.signal_today = True
-            else: 
-                self.size = int(5000 / self.data.close[0])
-                if self.size > 0:
-                    cost = self.size * self.data.close[0]
-                    self.order = self.buy(size=self.size)
-                    self.log_balance(-cost)
-                    self.entry_price = self.data.close[0]
-                    self.stop_price = self.data.low[0]
-                    self.signal_today = True
-    def stop(self):
-        #print("📈 每日 balance 变化：")
-        
-        
-        if self.p.printlog:
-            try:
-                total = 0
-                for date in sorted(self.balance_by_date):
-                    change = self.balance_by_date[date]
-                    total += change
-                    #print(f"{date}: {change:+.2f}")
-                print(f"💰 总收益变化: {total:+.2f}")
-                
-                analysis = self.analyzers.trades.get_analysis()
-                total = analysis.get('total', {}).get('total', 0)
-                won = analysis.get('won', {}).get('total', 0)
-                lost = analysis.get('lost', {}).get('total', 0)
-                pnl_net = analysis.get('pnl', {}).get('net', {}).get('total', 0.0)
-                win_rate = (won / total * 100) if total else 0
-            except Exception as e:
-                print(f"[ERROR] Analyzer error for {self.p.symbol}: {e}")
-                total = won = lost = 0
-                pnl_net = win_rate = 0
+            logger = logging.getLogger(__name__)
+            logger.info(f"[{self.data.datetime.date(0)}] Bollinger Jump - {self.p.symbol}")
+            self.signal_today = True
+            if not self.p.only_scan_last_day:
+                #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+                 #                                                  "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+                 #   return
+                # ==================== 统计 ====================
+                self.daily_stats[date]["buys"] += 1
+                BollingerVolumeBreakoutStrategy.global_stats[date]["buys"] += 1
+                # ==============================================
+                 
+                self.order = self.buy( )
+                self.entry_price = self.data.close[0]
+                self.stop_price = self.data.low[0] * 0.98 # 初始止损价设为买入价的 98.5%
+     
+    @classmethod
+    def export_global_csv(cls, filepath: str):
+       
+        rows = []
+        total_wins = 0
+        total_losses = 0
+        total_buys = 0
+        total_win_money = 0
+        total_loss_money = 0
 
-            print(
-                f"[STOP] [{self.p.symbol}] Final Value: {self.broker.getvalue():.2f} "
-                f"Trades: {total} | Wins: {won} | Losses: {lost} | Win Rate: {win_rate:.2f}% | Net PnL: {pnl_net:.2f}"
-            )
-            
+        for month in sorted(cls.global_stats.keys()):
+            wins = cls.global_stats[month]["wins"]
+            losses = cls.global_stats[month]["losses"]
+            trades = wins + losses
+            win_rate = (wins / trades) if trades > 0 else 0.0
 
-    def log_balance(self, amount):
-        date = self.datas[0].datetime.date(0)
-        self.balance_by_date[date] += amount
+            rows.append({
+                "month": month,
+                "wins": wins,
+                "losses": losses,
+                "win_rate": round(win_rate, 3),  # 保留4位小数，方便后续报表
+                "closed_trades": trades,
+                "buys": cls.global_stats[month]["buys"],
+                "net_earn$": round(cls.global_stats[month]["Win$"]+ cls.global_stats[month]["Loss$"],2),
+    
+            })
+
+            total_wins += wins
+            total_losses += losses
+            total_buys += cls.global_stats[month]["buys"]
+            total_win_money += cls.global_stats[month]["Win$"]
+            total_loss_money += cls.global_stats[month]["Loss$"]
+
+        # 写 CSV
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["month", "wins", "losses", "win_rate", "closed_trades", "buys", "net_earn$"])
+            writer.writeheader()
+            writer.writerows(rows)
+
+        # 控制台 summary
+        print("----- SUMMARY -----")
+        net_profit = round(total_win_money + total_loss_money,2) 
+        print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
+
+        print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0.0:.2f}")
+
+        return total_buys, net_profit
+    
+    
+    
+     
