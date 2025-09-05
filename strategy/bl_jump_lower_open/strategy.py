@@ -105,22 +105,23 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
                 return
 
         if self.check_buy_signal():
-            logger = logging.getLogger(__name__)
-            logger.info(f"[{self.data.datetime.date(0)}] Bollinger Jump - {self.p.symbol}")
             self.signal_today = True
-            if not self.p.only_scan_last_day:
-                #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
-                 #                                                  "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
-                 #   return
-                # ==================== 统计 ====================
+             
+            #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
+                #                                                  "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+                #   return
+            # ==================== 统计 ====================
+            
+            BollingerVolumeBreakoutStrategy.global_stats[date]["buys"] += 1
+            BollingerVolumeBreakoutStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
+            # ==============================================
                 
-                BollingerVolumeBreakoutStrategy.global_stats[date]["buys"] += 1
-                BollingerVolumeBreakoutStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
-                # ==============================================
-                 
-                self.order = self.buy( )
-                self.entry_price = self.data.close[0]
-                self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD
+            self.order = self.buy( )
+            self.entry_price = self.data.close[0]
+            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD
+            logger = logging.getLogger(__name__)
+            logger.info(f"[{self.data.datetime.date(0)}] Bollinger Jump - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT, 3 )} - stop:{round(self.zhusun_price, 3 )}")
+            
      
            
     @classmethod

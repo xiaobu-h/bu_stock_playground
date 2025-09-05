@@ -80,19 +80,20 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
+            AttackReversalStrategy,
+            printlog=False,
+            symbol=symbol
+        ) 
+   
+        """   
+        cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
             symbol=symbol, 
             only_scan_last_day=False
         )   
-   
-        """  
       
-         cerebro.addstrategy(
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol
-        ) 
+       
         
    
         cerebro.addstrategy(
@@ -138,9 +139,9 @@ if __name__ == "__main__":
     
     
     
-    total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
+    #total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
     
-    #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
+    total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
     
     #total_buys, net_profit = BollingerVolumeBreakoutStrategy.export_global_csv("monthly_winloss.csv")
  

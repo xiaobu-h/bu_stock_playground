@@ -4,18 +4,24 @@ import yfinance as yf
 import logging
 import datetime
 import pandas_market_calendars as mcal
+import os
 
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
 from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy   
-from strategy.attack_day.scan import AttackReversalSignalScan
+from strategy.attack_day.backtest_strategy import AttackReversalStrategy
+from strategy.attack_day.sensitive_param import  TAKE_PROFIT_PERCENT as TAKE_PROFIT_ATTACK
+from strategy.breakout_volume.sensitive_param import  TAKE_PROFIT_PERCENT_LARGE, TAKE_PROFIT_PERCENT_SMALL
+from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT as TAKE_PROFIT_BOLLINGER
 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
  
 
 # logging
 log_filename = datetime.now().strftime("monitor_log_%Y-%m-%d.log")
+if os.path.exists(log_filename):
+    os.remove(log_filename)
 logging.basicConfig(
     filename=log_filename,
     level=logging.INFO,
@@ -24,6 +30,7 @@ logging.basicConfig(
 )
 
 ONLY_SCAN_LAST_DAY = False 
+SEND_MESSAGE = False
 
 # fetcher
 def fetch_recent_data(symbol):
@@ -71,7 +78,8 @@ def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=ONLY_SCAN_LAST_DAY)    # ONLY Scan Last Day
-    results = cerebro.run()
+   
+    results = cerebro.run() 
     return results[0].signal_today
 
 def main():
@@ -91,18 +99,18 @@ def main():
     
         logging.info(f"Scanning {symbol}...")
         
-        try: 
-            if scan_stock(symbol,df, SimpleVolumeStrategy ):
-                alert = True 
-                msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: 1.5% or 2.5%"
-                messages.append(msg) 
-        except Exception as e:
-            logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
+        #try: 
+        if scan_stock(symbol,df, SimpleVolumeStrategy ):
+            alert = True 
+            msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {(TAKE_PROFIT_PERCENT_SMALL -1 )*100:.1f}% or {(TAKE_PROFIT_PERCENT_LARGE -1)*100:.1f}% "
+            messages.append(msg) 
+       # except Exception as e:
+          #  logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
         
         try:           
-            if scan_stock(symbol, df, AttackReversalSignalScan):
+            if scan_stock(symbol, df, AttackReversalStrategy):
                 alert = True 
-                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: 4.5%"
+                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {(TAKE_PROFIT_ATTACK - 1)*100:.1f}%"
                 messages.append(msg) 
         except Exception as e:
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
@@ -111,13 +119,13 @@ def main():
         try:  
             if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
                 alert = True 
-                msg = f"Buy Signal [Bollinger Low Jump]: {symbol}"
+                msg = f"Buy Signal [Bollinger Low Jump]: {symbol} - take profit: {(TAKE_PROFIT_BOLLINGER - 1)*100:.1f}%"
                 messages.append(msg)
         except Exception as e:
             logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
                
  
-    if ONLY_SCAN_LAST_DAY:    # send summary only when scanning last day
+    if SEND_MESSAGE:    # send summary only when scanning last day
         if alert: 
             final_message = "\n".join(messages)
             send_telegram_message(f"[Stock Alert]\n{final_message}")

@@ -29,6 +29,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)
         self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data.volume, period=10)
         self.signal_today = False
+        self.profile_rate = None
 
     
     
@@ -79,16 +80,13 @@ class SimpleVolumeStrategy(bt.Strategy):
            
         
         if  self.position:  
-            
-            rate = TAKE_PROFIT_PERCENT_SMALL if (self.day0_increses /self.data.open[0]) < BAR else TAKE_PROFIT_PERCENT_LARGE   
-            
-                
+        
             # 止盈
-            if  self.data.high[0]  > self.entry_price * rate:
+            if  self.data.high[0]  > self.entry_price * self.profile_rate:
                  
                 # ==================== 统计 ====================
                 SimpleVolumeStrategy.global_stats[date]["wins"] += 1  # 累加到全局
-                SimpleVolumeStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                SimpleVolumeStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING * (self.profile_rate - 1)
                 SimpleVolumeStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()
@@ -114,19 +112,20 @@ class SimpleVolumeStrategy(bt.Strategy):
             if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
                                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
                return
+
+            # ==================== 统计 ====================
+            SimpleVolumeStrategy.global_stats[date]["buys"] += 1
+            SimpleVolumeStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
+            # ==============================================
+            
+            self.order = self.buy()
+            self.day0_increses = self.data.close[0] - self.data.open[0]
+            self.profile_rate = TAKE_PROFIT_PERCENT_SMALL if (self.day0_increses /self.data.open[0]) < BAR else TAKE_PROFIT_PERCENT_LARGE
+            self.entry_price = self.data.close[0]
+            self.zhusun_price = ((self.data.close[0] + self.data.open[0]) * 0.5 ) * ZHUSUN_PERCENT    # 竹笋点 
             logger = logging.getLogger(__name__)
-            logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
+            logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol} - win: {round(self.entry_price*self.profile_rate, 3 )} - stop:{round(self.zhusun_price, 3 )} ")
        
-            if not self.p.only_scan_last_day:  # 回测扫描
-                # ==================== 统计 ====================
-                SimpleVolumeStrategy.global_stats[date]["buys"] += 1
-                SimpleVolumeStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
-                # ==============================================
-                self.order = self.buy()
-                self.day0_increses = self.data.close[0] - self.data.open[0]
-                self.entry_price = self.data.close[0]
-                self.zhusun_price = ((self.data.close[0] + self.data.open[0]) * 0.5 ) * ZHUSUN_PERCENT    # 竹笋点 
-                    
      
            
     @classmethod
@@ -165,10 +164,10 @@ class SimpleVolumeStrategy(bt.Strategy):
             total_loss_money += cls.global_stats[date]["Loss$"]
 
         # 写 CSV
-        #with open(filepath, "w", newline="", encoding="utf-8") as f:
-         #   writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
-         #   writer.writeheader()
-         #   writer.writerows(rows)
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
+            writer.writeheader()
+            writer.writerows(rows)
 
         # 控制台 summary
         
