@@ -4,79 +4,74 @@ import pandas as pd
 import logging
 from collections import defaultdict
 import csv 
+from strategy.breakout_volume.sensitive_param import  VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT ,MAX_JUMP_DOWN_PERCENT , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
-
-class SimpleVolumeLogic:
-    def __init__(self, data, volume_multiplier, min_total_increse_percent):
-        self.data = data
-        self.min_total_increse_percent = min_total_increse_percent
- 
-        self.volume_multiplier = volume_multiplier  
-        self.vol_sma3 = bt.indicators.SimpleMovingAverage(self.data.volume, period=3)
-        self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)
-        self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data.volume, period=10)
-               
-            
-    def check_buy_signal(self): 
-        open_ = self.data.open[0]
-        close = self.data.close[0] 
-        volume = self.data.volume[0]
-        
-        if close < open_:
-            #print(f"[{self.data.datetime.date(0)}]Close is less than open.")
-            return False
-        
-        if (volume < self.vol_sma3[0] * self.volume_multiplier) & (volume < self.vol_sma10[0] * self.volume_multiplier): #交易量大于2倍放量 (大于3天/10天均值）
-           # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
-            return False
-
-        if abs(close - open_) <  open_ *  self.min_total_increse_percent:    #涨幅 1.3%
-            #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
-            return False
-        
-        if (self.data.low[-1]  > close) & ((self.data.low[-1] - close) > self.data.close[-1] * 0.04):   #没有跳空下跌4%以上
-            #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
-            return False
-        
-        if  min(self.data.low[0] , self.data.low[-1] ) < close * 0.93:    #  昨天 or 今天的最低点 没有低于7%   《--神来之笔--》
-            return False
-        
-        return True
-    
+   
 class SimpleVolumeStrategy(bt.Strategy):
     
-    global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+    global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
 
     
     params = (
-        ('volume_multiplier', 2), 
-        ('min_total_increse_percent', 0.013),  # 最小涨幅 
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
     )
         
     
-    def __init__(self):
-        self.signal_today = False
+    def __init__(self): 
         self.order = None
         self.entry_price = None
-        self.stop_price = None
-        self.entry_date = None
-        self.day0_increses= None
-        self.buy_logic = SimpleVolumeLogic(
-            self.data, 
-            min_total_increse_percent=self.p.min_total_increse_percent,
-            volume_multiplier=self.p.volume_multiplier
-        ) 
-         
-        self.daily_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0})
+        self.zhusun_price = None
+        self.day0_increses= None 
+        self.vol_sma3 = bt.indicators.SimpleMovingAverage(self.data.volume, period=3)
+        self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)
+        self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data.volume, period=10)
 
+    
+    
+    def check_buy_signal(self): 
+        open_ = self.data.open[0]
+        close = self.data.close[0] 
+        volume = self.data.volume[0]
+        
+        if close < open_:
+            return False
+        
+        if (volume < self.vol_sma3[0] * VOLUME_MULTIPLIER) & (volume < self.vol_sma10[0] * VOLUME_MULTIPLIER): # 交易量放量倍数 (大于3天/10天均值）
+           # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
+            return False
+
+        if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT:    # 小于涨幅 bar
+            #print(f"[{self.data.datetime.date(0)}]Candle increase is too small.")
+            return False
+        
+        if (self.data.low[-1]  > close) & ((self.data.low[-1] - close) > self.data.close[-1] * MAX_JUMP_DOWN_PERCENT):   #没有跳空下跌4%以上
+            #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
+            return False
+        
+        if  min(self.data.low[0] , self.data.low[-1] ) < close * STOP_LOSS_THRESHOLD:   
+            return False
+        
+        return True
+    
+    
     def next(self):
        
         date = self.data.datetime.date(0).strftime("%Y-%m-%d")
-        
+        if date not in SimpleVolumeStrategy.global_stats:
+            SimpleVolumeStrategy.global_stats[date] = {
+            "buys": 0, 
+            "wins": 0, 
+            "losses": 0, 
+            "Win$": 0, 
+            "Loss$": 0, 
+            "buy_symbols": [],
+            "sell_symbols": []
+        }
+            
+            
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
                return
@@ -84,117 +79,98 @@ class SimpleVolumeStrategy(bt.Strategy):
         
         if  self.position:  
             
-            rate = 1.013 if (self.day0_increses /self.data.open[0]) < 0.05 else 1.025   # 默认1.5%； 当日上涨超6% 则止盈放宽至2.5%
-            
+            rate = TAKE_PROFIT_PERCENT_SMALL if (self.day0_increses /self.data.open[0]) < BAR else TAKE_PROFIT_PERCENT_LARGE   
             
                 
             # 止盈
             if  self.data.high[0]  > self.entry_price * rate:
                  
                 # ==================== 统计 ====================
-                self.daily_stats[date]["wins"] += 1
                 SimpleVolumeStrategy.global_stats[date]["wins"] += 1  # 累加到全局
-                self.daily_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
                 SimpleVolumeStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
+                #SimpleVolumeStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()
                 return
             
             
             # 止损
-            if self.data.low[0] < self.stop_price:  
+            if self.data.low[0] < self.zhusun_price:  
                 
    
                 # ==================== 统计 ====================
-                self.daily_stats[date]["losses"] += 1
                 SimpleVolumeStrategy.global_stats[date]["losses"] += 1
                 size = int(ONE_TIME_SPENDING / self.entry_price)
-                self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
-                SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_price)
+                SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
+                SimpleVolumeStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()
                 return
-            '''
-            
-            # 强制平仓：持仓超过5个交易日
-            if len( pd.bdate_range(start=self.entry_date, end=self.data.datetime.date(0)) ) > 5:
-                
-                # ==================== 统计 ====================
-                if self.data.close[0] > self.entry_price:
-                    self.daily_stats[date]["wins"] += 1
-                    SimpleVolumeStrategy.global_stats[date]["wins"] += 1   
-                    self.daily_stats[date]["Win$"] +=   (self.data.close[0] - self.entry_price) * size
-                    SimpleVolumeStrategy.global_stats[date]["Win$"] += (self.data.close[0] - self.entry_price) * size
-                else:
-                    self.daily_stats[date]["losses"] += 1
-                    SimpleVolumeStrategy.global_stats[date]["losses"] += 1
-                    size = int(ONE_TIME_SPENDING / self.entry_price)
-                    self.daily_stats[date]["Loss$"] -= size * (self.entry_price - self.data.close[0])
-                    SimpleVolumeStrategy.global_stats[date]["Loss$"] -= size * (self.entry_price - self.data.close[0])
-                # ==============================================
-                
-                self.close()
-                return
- '''
-        if self.buy_logic.check_buy_signal():
+     
+        
+        if self.check_buy_signal():
             
             if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
                                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
                return
             logger = logging.getLogger(__name__)
             logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol}")
-            self.signal_today = True
+       
             if not self.p.only_scan_last_day:  # 回测扫描
                 # ==================== 统计 ====================
-                self.daily_stats[date]["buys"] += 1
                 SimpleVolumeStrategy.global_stats[date]["buys"] += 1
+                SimpleVolumeStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.order = self.buy()
                 self.day0_increses = self.data.close[0] - self.data.open[0]
                 self.entry_price = self.data.close[0]
-                self.stop_price =(self.data.close[0] + self.data.open[0]) * 0.5  #= min(self.data.low[0] , self.data.low[-1] )   # 止损点 
-                self.entry_date = self.data.datetime.date(0)
+                self.zhusun_price = (self.data.close[0] + self.data.open[0]) * 0.5     # 竹笋点 
                     
+     
+           
     @classmethod
     def export_global_csv(cls, filepath: str):
-       
+
         rows = []
         total_wins = 0
         total_losses = 0
         total_buys = 0
         total_win_money = 0
         total_loss_money = 0
+        
 
-        for month in sorted(cls.global_stats.keys()):
-            wins = cls.global_stats[month]["wins"]
-            losses = cls.global_stats[month]["losses"]
-            trades = wins + losses
-            win_rate = (wins / trades) if trades > 0 else 0.0
+        for date in sorted(cls.global_stats.keys()):
+            wins = cls.global_stats[date]["wins"]
+            losses = cls.global_stats[date]["losses"]
+            buy_symbols = cls.global_stats[date]["buy_symbols"]
+            sell_symbols = cls.global_stats[date]["sell_symbols"]
 
             rows.append({
-                "month": month,
+                "date": date,
                 "wins": wins,
                 "losses": losses,
-                "win_rate": round(win_rate, 3),  # 保留4位小数，方便后续报表
-                "closed_trades": trades,
-                "buys": cls.global_stats[month]["buys"],
-                "net_earn$": round(cls.global_stats[month]["Win$"]+ cls.global_stats[month]["Loss$"],2),
+                "buy_symbols": ",".join(buy_symbols),
+                "sell_symbols": ",".join(sell_symbols),
+                "buys": cls.global_stats[date]["buys"],
+                "net_earn$": round(cls.global_stats[date]["Win$"]+ cls.global_stats[date]["Loss$"],2),
+                
     
             })
 
             total_wins += wins
             total_losses += losses
-            total_buys += cls.global_stats[month]["buys"]
-            total_win_money += cls.global_stats[month]["Win$"]
-            total_loss_money += cls.global_stats[month]["Loss$"]
+            total_buys += cls.global_stats[date]["buys"]
+            total_win_money += cls.global_stats[date]["Win$"]
+            total_loss_money += cls.global_stats[date]["Loss$"]
 
         # 写 CSV
         with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["month", "wins", "losses", "win_rate", "closed_trades", "buys", "net_earn$"])
+            writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
             writer.writeheader()
             writer.writerows(rows)
 
         # 控制台 summary
+        
         print("----- SUMMARY -----")
         net_profit = round(total_win_money + total_loss_money,2) 
         print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
@@ -203,6 +179,3 @@ class SimpleVolumeStrategy(bt.Strategy):
 
         return total_buys, net_profit
     
-    
-    
-     
