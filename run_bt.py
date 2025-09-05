@@ -79,22 +79,14 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.adddata(data)
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
-      
         cerebro.addstrategy(
-            BollingerVolumeBreakoutStrategy,
-            printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
-        )  
-       
-       
-   
-        """  cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
             symbol=symbol, 
             only_scan_last_day=False
         )   
+   
+        """  
       
          cerebro.addstrategy(
             AttackReversalStrategy,
@@ -103,6 +95,12 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         ) 
         
    
+        cerebro.addstrategy(
+            BollingerVolumeBreakoutStrategy,
+            printlog=False,
+            symbol=symbol,
+            only_scan_last_day = False,
+        )  
         
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
@@ -140,11 +138,11 @@ if __name__ == "__main__":
     
     
     
-    #total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
+    total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
     
     #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
     
-    total_buys, net_profit = BollingerVolumeBreakoutStrategy.export_global_csv("monthly_winloss.csv")
+    #total_buys, net_profit = BollingerVolumeBreakoutStrategy.export_global_csv("monthly_winloss.csv")
  
     print("=====  Max money usage: ===== ")
     max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING/ total_trading_days

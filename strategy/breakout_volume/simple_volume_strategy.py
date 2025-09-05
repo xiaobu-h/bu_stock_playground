@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 from collections import defaultdict
 import csv 
-from strategy.breakout_volume.sensitive_param import  VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT ,MAX_JUMP_DOWN_PERCENT , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR
+from strategy.breakout_volume.sensitive_param import  VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT ,MAX_JUMP_DOWN_PERCENT , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR ,ZHUSUN_PERCENT
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
    
@@ -28,6 +28,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.vol_sma3 = bt.indicators.SimpleMovingAverage(self.data.volume, period=3)
         self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)
         self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data.volume, period=10)
+        self.signal_today = False
 
     
     
@@ -88,7 +89,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 # ==================== 统计 ====================
                 SimpleVolumeStrategy.global_stats[date]["wins"] += 1  # 累加到全局
                 SimpleVolumeStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING * (rate - 1)
-                #SimpleVolumeStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
+                SimpleVolumeStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()
                 return
@@ -109,7 +110,7 @@ class SimpleVolumeStrategy(bt.Strategy):
      
         
         if self.check_buy_signal():
-            
+            self.signal_today = True
             if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
                                                                    "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
                return
@@ -124,7 +125,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                 self.order = self.buy()
                 self.day0_increses = self.data.close[0] - self.data.open[0]
                 self.entry_price = self.data.close[0]
-                self.zhusun_price = (self.data.close[0] + self.data.open[0]) * 0.5     # 竹笋点 
+                self.zhusun_price = ((self.data.close[0] + self.data.open[0]) * 0.5 ) * ZHUSUN_PERCENT    # 竹笋点 
                     
      
            
@@ -164,10 +165,10 @@ class SimpleVolumeStrategy(bt.Strategy):
             total_loss_money += cls.global_stats[date]["Loss$"]
 
         # 写 CSV
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
-            writer.writeheader()
-            writer.writerows(rows)
+        #with open(filepath, "w", newline="", encoding="utf-8") as f:
+         #   writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
+         #   writer.writeheader()
+         #   writer.writerows(rows)
 
         # 控制台 summary
         
