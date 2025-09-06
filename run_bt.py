@@ -11,7 +11,60 @@ from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
  
 
 import statistics
+
+global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
  
+    
+def export_global_csv(global_stats, filepath: str):
+
+    rows = []
+    total_wins = 0
+    total_losses = 0
+    total_buys = 0
+    total_win_money = 0
+    total_loss_money = 0
+    
+
+    for date in sorted(global_stats.keys()):
+        wins = global_stats[date]["wins"]
+        losses = global_stats[date]["losses"]
+        buy_symbols = global_stats[date]["buy_symbols"]
+        sell_symbols = global_stats[date]["sell_symbols"]
+
+        rows.append({
+            "date": date,
+            "wins": wins,
+            "losses": losses,
+            "buy_symbols": ",".join(buy_symbols),
+            "sell_symbols": ",".join(sell_symbols),
+            "buys": global_stats[date]["buys"],
+            "net_earn$": round(global_stats[date]["Win$"]+ global_stats[date]["Loss$"],2),
+            
+
+        })
+
+        total_wins += wins
+        total_losses += losses
+        total_buys += global_stats[date]["buys"]
+        total_win_money += global_stats[date]["Win$"]
+        total_loss_money += global_stats[date]["Loss$"]
+
+    # 写 CSV
+    # with open(filepath, "w", newline="", encoding="utf-8") as f:
+        #   writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
+        #   writer.writeheader()
+        #   writer.writerows(rows)
+
+    # 控制台 summary
+    
+    print("----- SUMMARY -----")
+    net_profit = round(total_win_money + total_loss_money,2) 
+    print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
+
+    print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0.0:.2f}")
+
+    return total_buys, net_profit
+    
 
 class PandasData(bt.feeds.PandasData):
     params = (
@@ -37,10 +90,13 @@ summary = {
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
+  
+    start="2020-01-01"
+    end="2025-06-01"   # 长期  # 65 个月
+    '''
     start="2024-11-01"
     end="2025-08-30"   # 近10个月
-    '''
-     
+   
       start="2025-01-01"
     end="2025-08-28"   # 近期 2025   8个月
     
@@ -80,11 +136,12 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
-            AttackReversalStrategy,
+            BollingerVolumeBreakoutStrategy,
             printlog=False,
-            symbol=symbol
-        ) 
-   
+            symbol=symbol,
+            only_scan_last_day = False,
+            global_stats = global_stats,
+        )  
         """   
         cerebro.addstrategy(
             SimpleVolumeStrategy,
@@ -94,14 +151,14 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         )   
       
        
-        
-   
         cerebro.addstrategy(
-            BollingerVolumeBreakoutStrategy,
+            AttackReversalStrategy,
             printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
-        )  
+            symbol=symbol
+        ) 
+   
+   
+      
         
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
@@ -141,14 +198,16 @@ if __name__ == "__main__":
     
     #total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
     
-    total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
+    #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
     
-    #total_buys, net_profit = BollingerVolumeBreakoutStrategy.export_global_csv("monthly_winloss.csv")
+    total_buys, net_profit = export_global_csv(global_stats, "monthly_winloss.csv")
  
     print("=====  Max money usage: ===== ")
     max_avg_money =  avg_bars * total_buys * ONE_TIME_SPENDING/ total_trading_days
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")
-    print(  net_profit / max_avg_money / 10 )    
-       
+    print(  net_profit / max_avg_money / 64 )    
+    
+    
+    
