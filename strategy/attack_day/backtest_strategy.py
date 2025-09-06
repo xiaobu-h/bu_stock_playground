@@ -11,13 +11,13 @@ ONE_TIME_SPENDING_ATTACK = 20000  # 每次买入金额
 
 class AttackReversalStrategy(bt.Strategy):
     
-    global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
-
+ 
     
     params = (
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
+        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
     )     
 
     def __init__(self):
@@ -25,6 +25,7 @@ class AttackReversalStrategy(bt.Strategy):
         self.stop_loss_price = 0.0
         self.buy_price = 0.0 
         self.signal_today = False
+        self.global_stats= self.p.global_stats
        
        
  
@@ -64,8 +65,8 @@ class AttackReversalStrategy(bt.Strategy):
   
         date = self.data.datetime.date(0).strftime("%Y-%m-%d")
       
-        if date not in AttackReversalStrategy.global_stats:
-            AttackReversalStrategy.global_stats[date] = {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []}
+        if date not in self.global_stats:
+            self.global_stats[date] = {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []}
         
         
         # ======== 买入 ===========
@@ -85,8 +86,8 @@ class AttackReversalStrategy(bt.Strategy):
                 self.buy()  
                    
                 # ==================== 统计 ====================
-                AttackReversalStrategy.global_stats[date]["buys"] += 1
-                AttackReversalStrategy.global_stats[date]["buy_symbols"].append(self.p.symbol)
+                self.global_stats[date]["buys"] += 1
+                self.global_stats[date]["buy_symbols"].append(self.p.symbol)
                 # ==============================================
                 return
  
@@ -95,9 +96,9 @@ class AttackReversalStrategy(bt.Strategy):
              # ======== 止盈 ===========
             if   (self.data.high[0] >= self.buy_price * TAKE_PROFIT_PERCENT) :
                 # ==================== 统计 ====================
-                AttackReversalStrategy.global_stats[date]["wins"] += 1  # 累加到全局
-                AttackReversalStrategy.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
-                AttackReversalStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
+                self.global_stats[date]["wins"] += 1  # 累加到全局
+                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
+                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                  
                 self.close()
@@ -107,65 +108,12 @@ class AttackReversalStrategy(bt.Strategy):
             if   (self.data.low[0] < self.stop_loss_price): 
               
                 # ==================== 统计 ====================
-                AttackReversalStrategy.global_stats[date]["losses"] += 1
+                self.global_stats[date]["losses"] += 1
                 size = int(ONE_TIME_SPENDING_ATTACK / self.buy_price)
-                AttackReversalStrategy.global_stats[date]["Loss$"] -= size * (self.buy_price - self.stop_loss_price)
-                AttackReversalStrategy.global_stats[date]["sell_symbols"].append(self.p.symbol)
+                self.global_stats[date]["Loss$"] -= size * (self.buy_price - self.stop_loss_price)
+                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()
                 return
             
-    
- 
-            
-    @classmethod
-    def export_global_csv(cls, filepath: str):
-
-        rows = []
-        total_wins = 0
-        total_losses = 0
-        total_buys = 0
-        total_win_money = 0
-        total_loss_money = 0
-        
-
-        for date in sorted(cls.global_stats.keys()):
-            wins = cls.global_stats[date]["wins"]
-            losses = cls.global_stats[date]["losses"]
-            buy_symbols = cls.global_stats[date]["buy_symbols"]
-            sell_symbols = cls.global_stats[date]["sell_symbols"]
-
-            rows.append({
-                "date": date,
-                "wins": wins,
-                "losses": losses,
-                "buy_symbols": ",".join(buy_symbols),
-                "sell_symbols": ",".join(sell_symbols),
-                "buys": cls.global_stats[date]["buys"],
-                "net_earn$": round(cls.global_stats[date]["Win$"]+ cls.global_stats[date]["Loss$"],2),
-                
-    
-            })
-
-            total_wins += wins
-            total_losses += losses
-            total_buys += cls.global_stats[date]["buys"]
-            total_win_money += cls.global_stats[date]["Win$"]
-            total_loss_money += cls.global_stats[date]["Loss$"]
-
-        # 写 CSV
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
-            writer.writeheader()
-            writer.writerows(rows)
-
-        # 控制台 summary
-        
-        print("----- SUMMARY -----")
-        net_profit = round(total_win_money + total_loss_money,2) 
-        print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
-
-        print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0.0:.2f}")
-
-        return total_buys, net_profit
     

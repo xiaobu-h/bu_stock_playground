@@ -8,12 +8,14 @@ from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
 from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
+import csv
  
 
 import statistics
 
 global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
  
+SAVE_AS_CSV = True 
     
 def export_global_csv(global_stats, filepath: str):
 
@@ -49,11 +51,11 @@ def export_global_csv(global_stats, filepath: str):
         total_win_money += global_stats[date]["Win$"]
         total_loss_money += global_stats[date]["Loss$"]
 
-    # 写 CSV
-    # with open(filepath, "w", newline="", encoding="utf-8") as f:
-        #   writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
-        #   writer.writeheader()
-        #   writer.writerows(rows)
+    if SAVE_AS_CSV:
+        with open(filepath, "w", newline="", encoding="utf-8") as f:
+           writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$"])
+           writer.writeheader()
+           writer.writerows(rows)
 
     # 控制台 summary
     
@@ -136,25 +138,27 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
+            SimpleVolumeStrategy,
+            printlog=False,
+            symbol=symbol, 
+            only_scan_last_day=False,
+            global_stats = global_stats,
+        )  
+        """   
+         
+         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
             global_stats = global_stats,
         )  
-        """   
-        cerebro.addstrategy(
-            SimpleVolumeStrategy,
-            printlog=False,
-            symbol=symbol, 
-            only_scan_last_day=False
-        )   
-      
        
         cerebro.addstrategy(
             AttackReversalStrategy,
             printlog=False,
-            symbol=symbol
+            symbol=symbol,
+            global_stats = global_stats,
         ) 
    
    
@@ -194,12 +198,7 @@ if __name__ == "__main__":
     #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
     avg_bars,total_trading_days = run(FINAL_SYMBOLS) 
     
-    
-    
-    #total_buys, net_profit = SimpleVolumeStrategy.export_global_csv("monthly_winloss.csv")
-    
-    #total_buys, net_profit = AttackReversalStrategy.export_global_csv("monthly_winloss.csv")
-    
+
     total_buys, net_profit = export_global_csv(global_stats, "monthly_winloss.csv")
  
     print("=====  Max money usage: ===== ")
