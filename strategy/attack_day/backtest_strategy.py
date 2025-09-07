@@ -1,8 +1,6 @@
 import backtrader as bt
 import pandas as pd
-import csv 
 import logging
-from collections import defaultdict
 from strategy.attack_day.sensitive_param import VOLUME_MULTIPLIER,YESTERDAY_VOLUME_DECREASE_PERCENT ,LOOKBACK_DAYS,MIN_DROP_FROM_LATST_5_DAYS,STOP_LOSS_THRESHOLD,TAKE_PROFIT_PERCENT 
 
 
@@ -23,7 +21,7 @@ class AttackReversalStrategy(bt.Strategy):
     def __init__(self):
         self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=LOOKBACK_DAYS)
         self.stop_loss_price = 0.0
-        self.buy_price = 0.0 
+        self.entry_price = 0.0 
         self.signal_today = False
         self.global_stats= self.p.global_stats
        
@@ -77,11 +75,11 @@ class AttackReversalStrategy(bt.Strategy):
             
             if self.is_attack_setup(): 
                 self.signal_today = True
-                self.buy_price = self.data.close[0]
+                self.entry_price = self.data.close[0]
                 self.stop_loss_price = self.data.low[0]  * STOP_LOSS_THRESHOLD 
                 
                 logger = logging.getLogger(__name__)
-                logger.info(f"[{self.data.datetime.date(0)}] Attack Day - {self.p.symbol} - win: {round(self.buy_price*TAKE_PROFIT_PERCENT, 3 )} - stop:{round(self.stop_loss_price, 3 )} ")
+                logger.info(f"[{self.data.datetime.date(0)}] Attack Day - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT, 3 )} - stop:{round(self.stop_loss_price, 3 )} ")
                       
                 self.buy()  
                    
@@ -94,7 +92,7 @@ class AttackReversalStrategy(bt.Strategy):
         if self.position:
             
              # ======== 止盈 ===========
-            if   (self.data.high[0] >= self.buy_price * TAKE_PROFIT_PERCENT) :
+            if   (self.data.high[0] >= self.entry_price * TAKE_PROFIT_PERCENT) :
                 # ==================== 统计 ====================
                 self.global_stats[date]["wins"] += 1  # 累加到全局
                 self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
@@ -109,8 +107,8 @@ class AttackReversalStrategy(bt.Strategy):
               
                 # ==================== 统计 ====================
                 self.global_stats[date]["losses"] += 1
-                size = int(ONE_TIME_SPENDING_ATTACK / self.buy_price)
-                self.global_stats[date]["Loss$"] -= size * (self.buy_price - self.stop_loss_price)
+                size = int(ONE_TIME_SPENDING_ATTACK / self.entry_price)
+                self.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_loss_price)
                 self.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.close()

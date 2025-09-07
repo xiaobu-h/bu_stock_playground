@@ -92,18 +92,19 @@ summary = {
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
-  
-    start="2020-01-01"
-    end="2025-06-01"   # 长期  # 65 个月
-    '''
-    start="2024-11-01"
-    end="2025-08-30"   # 近10个月
-   
-      start="2025-01-01"
+    start="2025-01-01"
     end="2025-08-28"   # 近期 2025   8个月
-    
+    ''' 
     start="2022-10-11"
     end="2025-02-20"     # 牛市 2022 - 2025  
+   
+      start="2024-11-01"
+    end="2025-08-30"   # 近10个月
+    start="2020-01-01"
+    end="2025-06-01"   # 长期  # 65 个月
+      
+    
+    
      start="2020-01-01"
     end="2025-06-01"   # 长期  # 65 个月
   
@@ -138,14 +139,19 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
 
         cerebro.addstrategy(
+            AttackReversalStrategy,
+            printlog=False,
+            symbol=symbol,
+            global_stats = global_stats,
+        )
+        """   cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
             symbol=symbol, 
             only_scan_last_day=False,
             global_stats = global_stats,
         )  
-        """   
-         
+          
          cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
@@ -154,13 +160,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
         )  
        
-        cerebro.addstrategy(
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol,
-            global_stats = global_stats,
-        ) 
-   
+        
+    
    
       
         
@@ -206,7 +207,7 @@ if __name__ == "__main__":
     print( max_avg_money)
     
     print("=====  月转化率: ===== ")
-    print(  net_profit / max_avg_money / 64 )    
+    print(  net_profit / max_avg_money / int(total_trading_days / 21) )    
     
     
     

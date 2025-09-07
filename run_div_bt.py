@@ -33,17 +33,17 @@ for symbol in DIVIDEN_SYMBOLS:
             if idx >= 9:
                 buy_date = hist.index[idx - x_days].date()
                 sell_date = hist.index[idx -1 ].date()
-                buy_price = hist.iloc[idx - x_days]["Close"]
+                entry_price = hist.iloc[idx - x_days]["Close"]
                 
-                number = 5000 / buy_price
+                number = 5000 / entry_price
                 sell_price = hist.iloc[idx -1 ]["Close"]
-                change = (sell_price *  number) - (buy_price * number)
+                change = (sell_price *  number) - (entry_price * number)
                 total += change
                 all_records.append({
                     "Symbol": symbol,
                     "Buy_Date": buy_date,
                     "Sell_Date": sell_date,
-                    "Buy_Price": round(buy_price, 2), 
+                    "entry_price": round(entry_price, 2), 
                     "Sell_Price": round(sell_price, 2),
                     "Return ": round(change, 2)
                 })
