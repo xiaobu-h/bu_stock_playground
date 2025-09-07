@@ -91,23 +91,22 @@ summary = {
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    
-    start="2025-01-01"
-    end="2025-08-28"   # 近期 2025   8个月
-    ''' 
-    start="2022-10-11"
-    end="2025-02-20"     # 牛市 2022 - 2025  
    
-      start="2024-11-01"
+    start="2024-11-01"
     end="2025-08-30"   # 近10个月
+     
+    '''  
     start="2020-01-01"
     end="2025-06-01"   # 长期  # 65 个月
-      
+      start="2025-01-01"
+    end="2025-08-28"   # 近期 2025   8个月
     
-    
-     start="2020-01-01"
-    end="2025-06-01"   # 长期  # 65 个月
+   start="2022-10-11"
+    end="2025-02-20"     # 牛市 2022 - 2025
   
+   
+      
+     
       start="2025-06-01"
     end="2025-08-27"  # 近期  近三个月
     
@@ -118,11 +117,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
     start="2025-02-24"
     end="2025-04-07"   # 熊市 2025关税
-    
- 
-  
-    start="2022-10-11"
-    end="2025-02-20"     # 牛市 2022 - 2025
+
  
     '''
     df_dict = fetch_yahoo_data(symbols, start=start, end=end)  # 近期 2025 
@@ -137,21 +132,22 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         data = PandasData(dataname=df)
         cerebro.adddata(data)
         cerebro.broker.set_coc(True) # set to True to enable close of the current bar to be used for the next bar's open price
-
         cerebro.addstrategy(
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol,
-            global_stats = global_stats,
-        )
-        """   cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
             symbol=symbol, 
             only_scan_last_day=False,
             global_stats = global_stats,
         )  
-          
+       
+       
+        """  
+           cerebro.addstrategy(
+            AttackReversalStrategy,
+            printlog=False,
+            symbol=symbol,
+            global_stats = global_stats,
+        )
          cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
@@ -159,12 +155,6 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             only_scan_last_day = False,
             global_stats = global_stats,
         )  
-       
-        
-    
-   
-      
-        
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades") 

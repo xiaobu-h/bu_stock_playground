@@ -1,9 +1,8 @@
 import backtrader as bt
 from datetime import datetime 
 from collections import defaultdict
-import csv
 import logging
-from strategy.bl_jump_lower_open.sensitive_param import LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, MAX_JUMP_DOWN_PERCENT, CROSS_DEEP_PCT
+from strategy.bl_jump_lower_open.sensitive_param import LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, MAX_JUMP_DOWN_PERCENT, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
 
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
@@ -50,6 +49,10 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             return False
         
         if volume < avg_volume * VOLUME_MULTIPLIER:   #放量
+            return False
+        
+        if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT:    # 小于涨幅 bar
+           
             return False
         
         if (close - self.data.low[-1]) / self.data.low[-1]  > MAX_JUMP_DOWN_PERCENT :   
@@ -109,8 +112,8 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             self.signal_today = True
              
             #if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
-                #                                                  "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
-                #   return
+                  #                                                "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+               #    return
             # ==================== 统计 ====================
             
             self.global_stats[date]["buys"] += 1
