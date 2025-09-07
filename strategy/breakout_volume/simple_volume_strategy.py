@@ -40,7 +40,9 @@ class SimpleVolumeStrategy(bt.Strategy):
         if close < open_:
             return False
         
-        if (volume < self.vol_sma3[0] * VOLUME_MULTIPLIER) & (volume < self.vol_sma10[0] * VOLUME_MULTIPLIER): # 交易量放量倍数 (大于3天/10天均值）
+        vol = 3.1 if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
+        
+        if (volume < self.vol_sma3[0] * vol) & (volume < self.vol_sma10[0] * vol): # 交易量放量倍数 (大于3天/10天均值）
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")
             return False
 
@@ -52,6 +54,7 @@ class SimpleVolumeStrategy(bt.Strategy):
             #print(f"[{self.data.datetime.date(0)}]Jump down too much.")
             return False
         
+         
         if  min(self.data.low[0] , self.data.low[-1] ) < close * STOP_LOSS_THRESHOLD:   
             return False
         
@@ -125,4 +128,15 @@ class SimpleVolumeStrategy(bt.Strategy):
             logger = logging.getLogger(__name__)
             logger.info(f"[{self.data.datetime.date(0)}] VOL x 2 - {self.p.symbol} - win: {round(self.entry_price*self.profile_rate, 3 )} - stop:{round(self.zhusun_price, 3 )} ")
        
-      
+
+           
+def is_quadruple_witching(date) -> bool:
+    #"""仅按规则：3/6/9/12 月的第3个周五（不考虑休市调整）"""
+    d = pd.Timestamp(date).tz_localize(None).normalize()
+    if d.month not in (3, 6, 9, 12):
+        return False
+    # 这一年的所有“第3个周五”
+    third_fris = pd.date_range(start=f'{d.year}-01-01',
+                               end=f'{d.year}-12-31',
+                               freq='WOM-3FRI').normalize()
+    return d in third_fris

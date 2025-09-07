@@ -1,9 +1,10 @@
 import backtrader as bt
 from datetime import datetime 
 from collections import defaultdict
+import pandas as pd
 import logging
 from strategy.bl_jump_lower_open.sensitive_param import LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, MAX_JUMP_DOWN_PERCENT, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
-
+ 
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
 
@@ -15,9 +16,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         ('symbol', 'UNKNOWN'),
         ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []})
     )
-    
-
-
+ 
     def __init__(self):
         self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
         self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=LOOKBACK_DAYS)
@@ -48,7 +47,9 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if ((low_band - open_) / low_band) < CROSS_DEEP_PCT:     
             return False
         
-        if volume < avg_volume * VOLUME_MULTIPLIER:   #放量
+        vol = 3.1 if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
+            
+        if volume < avg_volume * vol:   #放量
             return False
         
         if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT:    # 小于涨幅 bar
@@ -128,4 +129,13 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             
      
            
-     
+def is_quadruple_witching(date) -> bool:
+    #"""仅按规则：3/6/9/12 月的第3个周五（不考虑休市调整）"""
+    d = pd.Timestamp(date).tz_localize(None).normalize()
+    if d.month not in (3, 6, 9, 12):
+        return False
+    # 这一年的所有“第3个周五”
+    third_fris = pd.date_range(start=f'{d.year}-01-01',
+                               end=f'{d.year}-12-31',
+                               freq='WOM-3FRI').normalize()
+    return d in third_fris
