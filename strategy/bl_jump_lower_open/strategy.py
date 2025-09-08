@@ -3,7 +3,7 @@ from datetime import datetime
 from collections import defaultdict
 import pandas as pd
 import logging
-from strategy.bl_jump_lower_open.sensitive_param import LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, MAX_JUMP_DOWN_PERCENT, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
+from strategy.bl_jump_lower_open.sensitive_param import VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, MAX_JUMP_DOWN_PERCENT, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
  
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
@@ -47,7 +47,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if ((low_band - open_) / low_band) < CROSS_DEEP_PCT:     
             return False
         
-        vol = 3.1 if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
+        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
             
         if volume < avg_volume * vol:   #放量
             return False
@@ -129,12 +129,10 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             
      
            
-def is_quadruple_witching(date) -> bool:
-    #"""仅按规则：3/6/9/12 月的第3个周五（不考虑休市调整）"""
+def is_quadruple_witching(date) -> bool: 
     d = pd.Timestamp(date).tz_localize(None).normalize()
     if d.month not in (3, 6, 9, 12):
-        return False
-    # 这一年的所有“第3个周五”
+        return False 
     third_fris = pd.date_range(start=f'{d.year}-01-01',
                                end=f'{d.year}-12-31',
                                freq='WOM-3FRI').normalize()

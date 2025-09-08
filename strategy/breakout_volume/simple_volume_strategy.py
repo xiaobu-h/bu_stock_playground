@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 from collections import defaultdict
 import csv 
-from strategy.breakout_volume.sensitive_param import  VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT ,MAX_JUMP_DOWN_PERCENT , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR ,ZHUSUN_PERCENT
+from strategy.breakout_volume.sensitive_param import  VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT ,MAX_JUMP_DOWN_PERCENT , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR ,ZHUSUN_PERCENT
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
    
@@ -40,7 +40,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         if close < open_:
             return False
         
-        vol = 3.1 if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
+        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
         
         if (volume < self.vol_sma3[0] * vol) & (volume < self.vol_sma10[0] * vol): # 交易量放量倍数 (大于3天/10天均值）
            # print(f"[{self.data.datetime.date(0)}]Volume is not a spike.")

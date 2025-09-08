@@ -140,13 +140,13 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
         ) 
         """   
-        cerebro.addstrategy(
+          cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
             global_stats = global_stats,
-        ) 
+        )
        
            cerebro.addstrategy(
             AttackReversalStrategy,
