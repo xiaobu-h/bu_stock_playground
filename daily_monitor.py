@@ -6,6 +6,8 @@ import datetime
 import pandas_market_calendars as mcal
 import os
 
+from ib_fetcher import fetch_data_from_ibkr
+
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
@@ -36,9 +38,14 @@ SEND_MESSAGE = False
 def fetch_recent_data(symbol):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=45)  # load extra data to ensure we have enough for the strategy     
+        start_date = end_date - pd.Timedelta(days=45)  # load extra data to ensure we have enough for the strategy   
+        
+        # *********** yfinance *************  
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
-
+        # *********** IBKR *************  
+       # df_data = fetch_data_from_ibkr(symbol, start=start_date.strftime("2025-08-01"), end=end_date.strftime("2025-09-12"), interval="1d", is_daily_scan = True)
+        #df = df_data[symbol]
+        
         if df.empty:
             logging.warning(f"No data for {symbol}")
             return None
@@ -76,17 +83,17 @@ class CustomPandasData(bt.feeds.PandasData):
 def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
-    cerebro.adddata(data)
+    cerebro.adddata(data) 
     cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=ONLY_SCAN_LAST_DAY)    # ONLY Scan Last Day
    
     results = cerebro.run() 
     return results[0].signal_today
 
 def main():
-    if not is_trading_day():
-        is_weekend =  datetime.today().weekday() >=  5
-        send_telegram_message("Enjoy the weekend! :)" if is_weekend else "Enjoy the holiday!! :)")
-        return
+    #if not is_trading_day():
+    #    is_weekend =  datetime.today().weekday() >=  5
+     #   send_telegram_message("Enjoy the weekend! :)" if is_weekend else "Enjoy the holiday!! :)")
+    #    return
     
     symbols = FINAL_SYMBOLS
     alert = False
@@ -104,8 +111,8 @@ def main():
             alert = True 
             msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {(TAKE_PROFIT_PERCENT_SMALL -1 )*100:.1f}% or {(TAKE_PROFIT_PERCENT_LARGE -1)*100:.1f}% "
             messages.append(msg) 
-       # except Exception as e:
-          #  logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
+        #except Exception as e:
+        #    logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
         
         try:           
             if scan_stock(symbol, df, AttackReversalStrategy):
@@ -116,13 +123,13 @@ def main():
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
         
-        try:  
-            if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
-                alert = True 
-                msg = f"Buy Signal [Bollinger Low Jump]: {symbol} - take profit: {(TAKE_PROFIT_BOLLINGER - 1)*100:.1f}%"
-                messages.append(msg)
-        except Exception as e:
-            logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
+        #try:  
+        if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
+            alert = True 
+            msg = f"Buy Signal [Bollinger Low Jump]: {symbol} - take profit: {(TAKE_PROFIT_BOLLINGER - 1)*100:.1f}%"
+            messages.append(msg)
+       # except Exception as e:
+          #  logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
                
  
     if SEND_MESSAGE:    # send summary only when scanning last day

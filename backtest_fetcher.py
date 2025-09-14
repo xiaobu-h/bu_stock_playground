@@ -21,6 +21,7 @@ def fetch_yahoo_data(symbols, start="2025-06-01", end="2025-08-27", interval="1d
                 start=start,
                 end=end,
                 interval=interval,
+                prepost=False,
                 progress=False,
                 auto_adjust=False,
                 group_by='ticker'

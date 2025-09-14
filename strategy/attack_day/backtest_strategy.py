@@ -30,6 +30,10 @@ class AttackReversalStrategy(bt.Strategy):
         
     def is_attack_setup(self):
         
+        if self.data.close[0] <= self.data.open[0]: 
+            return False
+        
+       
         if not (
             self.data.close[-1] < self.data.close[-2] and
             self.data.close[-1] < self.data.open[-1] and
@@ -44,8 +48,6 @@ class AttackReversalStrategy(bt.Strategy):
             return False
          
         
-        if self.data.close[0] <= self.data.open[0]: 
-            return False
 
         if self.data.volume[0] <= self.vol_sma5[0] * VOLUME_MULTIPLIER:
             return False
@@ -70,7 +72,7 @@ class AttackReversalStrategy(bt.Strategy):
         # ======== 买入 ===========
         if not self.position:
             if self.data.datetime.date(0).strftime("%Y-%m-%d") in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,
-                                                                   "2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+                                                                   "2025-04-04", "2024-08-05","2022-06-24" , "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
                return
             
             if self.is_attack_setup(): 
@@ -90,18 +92,6 @@ class AttackReversalStrategy(bt.Strategy):
                 return
  
         if self.position:
-            
-             # ======== 止盈 ===========
-            if   (self.data.high[0] >= self.entry_price * TAKE_PROFIT_PERCENT) :
-                # ==================== 统计 ====================
-                self.global_stats[date]["wins"] += 1  # 累加到全局
-                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
-                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
-                 
-                self.close()
-                return
-                
             # ======= 止损 ===========
             if   (self.data.low[0] < self.stop_loss_price): 
               
@@ -114,4 +104,16 @@ class AttackReversalStrategy(bt.Strategy):
                 self.close()
                 return
             
-    
+             # ======== 止盈 ===========
+            if   (self.data.high[0] >= self.entry_price * TAKE_PROFIT_PERCENT) :
+                # ==================== 统计 ====================
+                self.global_stats[date]["wins"] += 1  # 累加到全局
+                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
+                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
+                # ==============================================
+                 
+                self.close()
+                return
+                
+            
+              
