@@ -8,7 +8,7 @@ import time
 
 _IB_HOST = "127.0.0.1"
 _IB_PORT = 7497
-_IB_CLIENT_ID = 33
+_IB_CLIENT_ID = 31
 
 _INTERVAL_TO_BARSIZE = {
     "1min":  "1 min",
@@ -74,8 +74,12 @@ def fetch_data_from_ibkr(
     start_dt = pd.to_datetime(start)
     end_dt   = pd.to_datetime(end)
 
-   
+    
     data_dict = {}
+    if is_connect_n_download:
+        duration_str = _choose_duration_str(start_dt, end_dt, bar_size)
+        ib = IB()
+        ib.connect(_IB_HOST, _IB_PORT, clientId=_IB_CLIENT_ID)
     
     for symbol in symbols:
         str_a = "useRTH" if useRTH else "all_day"
@@ -83,9 +87,7 @@ def fetch_data_from_ibkr(
         if not is_daily_scan and os.path.exists(file_path):
             df = pd.read_csv(file_path, index_col="Date", parse_dates=True)
         elif is_connect_n_download: 
-            duration_str = _choose_duration_str(start_dt, end_dt, bar_size)
-            ib = IB()
-            ib.connect(_IB_HOST, _IB_PORT, clientId=_IB_CLIENT_ID)
+            
             print(f"⬇️ Downloading data for {symbol} via IBKR")
             contract = Stock(symbol, "SMART", "USD")
             ib.qualifyContracts(contract)
@@ -129,17 +131,18 @@ def fetch_data_from_ibkr(
                 df["Volume"] = df["Volume"].fillna(0).astype("int64")
                 if not is_daily_scan:
                     df.to_csv(file_path, index_label="Date")
-                time.sleep(2) 
+                time.sleep(10.5) 
                     # 若 Datetime 含时区（常见），先转到 UTC；若不含，先认为是 UTC
             
-            ib.disconnect()
+            
         else:
             print(symbol,"没有数据，且没有下载")
             df = pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
         data_dict[symbol] = df
         
     
-
+    if is_connect_n_download:
+        ib.disconnect()
     return data_dict
  
 

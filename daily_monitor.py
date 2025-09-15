@@ -11,8 +11,8 @@ from ib_fetcher import fetch_data_from_ibkr
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
-from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy   
-from strategy.attack_day.backtest_strategy import AttackReversalStrategy
+from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy   
+from strategy.attack_day.attack_day_strategy import AttackReversalStrategy
 from strategy.attack_day.sensitive_param import  TAKE_PROFIT_PERCENT as TAKE_PROFIT_ATTACK
 from strategy.breakout_volume.sensitive_param import  TAKE_PROFIT_PERCENT_LARGE, TAKE_PROFIT_PERCENT_SMALL
 from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT as TAKE_PROFIT_BOLLINGER
@@ -38,7 +38,7 @@ SEND_MESSAGE = False
 def fetch_recent_data(symbol):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=45)  # load extra data to ensure we have enough for the strategy   
+        start_date = end_date - pd.Timedelta(days=60)  # load extra data to ensure we have enough for the strategy   
         
         # *********** yfinance *************  
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)

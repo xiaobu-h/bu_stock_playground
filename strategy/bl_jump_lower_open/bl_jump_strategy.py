@@ -19,12 +19,9 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
     )
  
     def __init__(self):
-        self.data_mins = self.datas[0]
-        self.data_daily = self.datas[0]
-        #self.data_daily =  self.datas[1] if self.p.is_backtest else self.datas[0]
-        
-        self.boll = bt.indicators.BollingerBands(self.data_daily.close, period=20, devfactor=2)
-        self.vol_sma = bt.indicators.SimpleMovingAverage(self.data_daily.volume, period=LOOKBACK_DAYS)
+        self.data = self.datas[0]
+        self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
+        self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=LOOKBACK_DAYS)
         self.balance_by_date = defaultdict(float)
         self.size = 0
         self.signal_today = False
@@ -32,17 +29,18 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         self.zhusun_price = None   
         self.global_stats = self.p.global_stats
         self.ordered = False
+        self.symbol = self.p.symbol
        
 
     def check_buy_signal(self): 
         if len(self.data) < LOOKBACK_DAYS:
             return False
-        open_ = self.data_daily.open[0]
-        close = self.data_daily.close[0]
+        open_ = self.data.open[0]
+        close = self.data.close[0]
         low_band = self.boll.lines.bot[0]
-        volume = self.data_daily.volume[0]
+        volume = self.data.volume[0]
         avg_volume = self.vol_sma[0]
-      
+        
         if close <  open_:    
             return False
         
@@ -52,21 +50,19 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if ((low_band - open_) / low_band) < CROSS_DEEP_PCT:     
             return False
         
-        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data_daily.datetime.date(0)) else VOLUME_MULTIPLIER
+        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
             
         if volume < avg_volume * vol:   #放量
             return False
         
         if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT:    # 小于涨幅 bar
-           
             return False
         
         return True
 
     def next(self):
-        date = self.data_daily.datetime.date(0).strftime("%Y-%m-%d")
-        sell_date =  self.data_mins.datetime.date(0).strftime("%Y-%m-%d")
-        
+        date = self.data.datetime.date(0).strftime("%Y-%m-%d")
+
         if date not in self.global_stats:
             self.global_stats[date] = {
             "buys": 0, 
@@ -80,19 +76,19 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             
         
         if self.p.only_scan_last_day:
-            if len(self) < 2 or self.data_daily.datetime.date(0) != datetime.today().date():
+            if len(self) < 2 or self.data.datetime.date(0) != datetime.today().date():
                return
         # ================================================== Daily Monitor =========================================================
         if  not self.p.is_backtest and self.check_buy_signal():
             self.signal_today = True
             logger = logging.getLogger(__name__)
-            logger.info(f"[{date}] Bollinger Jump - {self.p.symbol} - win: {round(self.data_daily.close[0]*TAKE_PROFIT_PERCENT, 3 )} - stop:{round((self.data_daily.low[0] * STOP_LOSS_THRESHOLD), 3 )}")
+            logger.info(f"[{date}] Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*TAKE_PROFIT_PERCENT, 3 )} - stop:{round((self.data.low[0] * STOP_LOSS_THRESHOLD), 3 )}")
             return
             
             
         # =================================================== Backtest ==============================================================
         # ------------ 买入 ----------
-        #and (self.data_mins.datetime.time(0) == time(13,00) or self.data_mins.datetime.time(0) == time(13,30)) 
+        #and (self.data.datetime.time(0) == time(13,00) or self.data.datetime.time(0) == time(13,30)) 
         if  self.p.is_backtest and not self.ordered and  self.check_buy_signal():
            
             if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
@@ -103,13 +99,13 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             self.global_stats[date]["buy_symbols"].append(self.p.symbol)
             # ==============================================
  
-            self.entry_price = self.data_daily.close[0]
-            self.zhusun_price = self.data_daily.low[0] * STOP_LOSS_THRESHOLD
+            self.entry_price = self.data.close[0]
+            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD
              
             self.ordered = True
             '''
              # 重复添加 止盈止损判断 以统计 第二天第一个小时的bar  因为在 self.buy()之后 这个bar会被跳过
-            if self.data_mins.low[0] < self.zhusun_price:  
+            if self.data.low[0] < self.zhusun_price:  
                 self.global_stats[sell_date]["losses"] += 1
                 size = int(ONE_TIME_SPENDING_BOLLINGER / self.entry_price)
                 self.global_stats[sell_date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
@@ -117,7 +113,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
                 self.ordered = False
                 return
                 
-            if  self.data_mins.high[0]  > self.entry_price * TAKE_PROFIT_PERCENT:
+            if  self.data.high[0]  > self.entry_price * TAKE_PROFIT_PERCENT:
                 self.global_stats[sell_date]["wins"] += 1  
                 self.global_stats[sell_date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (TAKE_PROFIT_PERCENT - 1)
                 self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol) 
@@ -128,8 +124,8 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             
              
         if  self.p.is_backtest and self.ordered and self.position:
-            high = self.data_mins.high[0]
-            low = self.data_mins.low[0]
+            high = self.data.high[0]
+            low = self.data.low[0]
              # 止损
             if low < self.zhusun_price:
                 

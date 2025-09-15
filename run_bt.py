@@ -3,8 +3,8 @@ import backtrader as bt
 import pandas as pd
 from ib_fetcher import fetch_data_from_ibkr
 from backtest_fetcher import fetch_yahoo_data
-from strategy.attack_day.backtest_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
-from strategy.bl_jump_lower_open.strategy import BollingerVolumeBreakoutStrategy 
+from strategy.attack_day.attack_day_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
+from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
 from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS,BL_2024_2025_SYMBOLS
 from collections import defaultdict
@@ -84,10 +84,10 @@ class PandasData(bt.feeds.PandasData):
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
-    start="2025-01-01"
-    end="2025-08-28"   # 近期 2025   8个月
+   
     '''   
-       
+        start="2025-01-01"
+    end="2025-08-28"   # 近期 2025   8个月
    start="2020-01-01"
     end="2025-06-01"   # 长期  # 65 个月
       
@@ -107,8 +107,6 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
       start="2025-06-01"
     end="2025-08-27"  # 近期  近三个月
     
-      
-    
     
     start="2025-02-24"
     end="2025-04-07"   # 熊市 2025关税
@@ -126,21 +124,20 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
     
     # ************ IB
-    #start="2024-09-01"
-   # end="2025-08-28"   # 去年一年
-   # start="2023-09-01"
+    start="2024-09-01"
+    end="2025-08-28"   # 去年一年
+    #start="2023-09-01"
     #end="2024-08-28"   #  23 - 24 年
     #start="2022-09-01"
     #end="2023-08-28"   # 22 - 23 年
-   # data_1h = fetch_data_from_ibkr(symbols,start=start, end=end ,useRTH = True, is_connect_n_download=True)
-
-    #data_30m = fetch_yahoo_data(symbols, start=start, end=end, interval= "1h")  # 近期 2025 
-    data_daily = fetch_yahoo_data(symbols, start=start, end=end)   
+    data_srouce = fetch_data_from_ibkr(symbols,start=start, end=end ,useRTH = True, is_connect_n_download=False)
+ 
+    #data_srouce = fetch_yahoo_data(symbols, start=start, end=end)   
     total_trading_days =  len( pd.bdate_range(start=start, end=end)) 
     
     all_bars = []
     all_days = []
-    for symbol, df in data_daily.items():
+    for symbol, df in data_srouce.items():
         df = df[["Open", "High", "Low", "Close", "Volume"]]
         
 
@@ -149,18 +146,20 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         
         cerebro.adddata(data_min)  # datas[0]
         
-         # === 从 30m 数据重采样成日线 ===
+         # == 从 小时线 数据重采样成日线 ===
         cerebro.resampledata(data_min,
                              timeframe=bt.TimeFrame.Days,
                              compression=1)        # datas[1]
-        
-          
         cerebro.addstrategy(
-            AttackReversalStrategy,
+            SimpleVolumeStrategy,
             printlog=False,
-            symbol=symbol,
+            symbol=symbol, 
+            only_scan_last_day=False,
             global_stats = global_stats,
-        )
+            is_backtest = True,
+        ) 
+        
+       
         """   
            cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
@@ -170,13 +169,12 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
             is_backtest = True,
         ) 
-         cerebro.addstrategy(
-            SimpleVolumeStrategy,
+         
+        cerebro.addstrategy(
+            AttackReversalStrategy,
             printlog=False,
-            symbol=symbol, 
-            only_scan_last_day=False,
+            symbol=symbol,
             global_stats = global_stats,
-            is_backtest = True,
         )
         
         """

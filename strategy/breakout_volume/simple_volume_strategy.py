@@ -4,7 +4,7 @@ import pandas as pd
 import logging  
 
 import pandas_market_calendars as mcal
-from strategy.breakout_volume.sensitive_param import  VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER , MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
+from strategy.breakout_volume.sensitive_param import  VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER , SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
    
@@ -25,9 +25,8 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.data_daily =  self.datas[1] if self.p.is_backtest else self.datas[0]
         self.order = None
         self.entry_price = None
-        self.zhusun_price = None
-        self.vol_sma3 = bt.indicators.SimpleMovingAverage(self.data_daily.volume, period=3) 
-        self.vol_sma10 = bt.indicators.SimpleMovingAverage(self.data_daily.volume, period=10)
+        self.zhusun_price = None 
+        self.vol_sma = bt.indicators.SimpleMovingAverage(self.data_daily.volume, period=SMA_DAYS)
         self.signal_today = False
         self.profile_rate = None
         self.global_stats= self.p.global_stats
@@ -48,7 +47,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         
         vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data_daily.datetime.date(0)) else VOLUME_MULTIPLIER
         
-        if (volume < self.vol_sma3[0] * vol) & (volume < self.vol_sma10[0] * vol): # 交易量放量倍数 (大于3天/10天均值）
+        if  volume < self.vol_sma[0] * vol : # 交易量放量倍数 
             #print(f"[{self.data_daily.datetime.date(0)}]Volume is not a spike.")
             return False
         
@@ -96,18 +95,19 @@ class SimpleVolumeStrategy(bt.Strategy):
         
         # =================================================== Backtest ==============================================================
         # ------------ 买入 ----------
-        if  self.p.is_backtest and not self.position and (self.data_mins.datetime.time(0) == time(13, 00) ) and  self.check_buy_signal():
+      
+        if  self.p.is_backtest and not self.position and  (self.data_mins.datetime.time(0) == time(13, 00) or self.data_mins.datetime.time(0) == time(13, 30) ) and  self.check_buy_signal():
             
-            if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
-                        "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
-               return
+           # if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
+             #           "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+             #  return
            
             today_increase = (self.data_daily.close[0] - self.data_daily.open[0]) /self.data_daily.open[0]
             self.profile_rate = TAKE_PROFIT_PERCENT_SMALL if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE
             self.entry_price = self.data_daily.close[0]
            
                 
-            self.zhusun_price =  (self.data_daily.open[0] * ZHUSUN_PERCENT) if today_increase < 0.07 else  ( (self.data_daily.open[0] + self.data_daily.open[0] ) / 2) # 竹笋点 
+            self.zhusun_price =  (self.data_daily.low[0] * ZHUSUN_PERCENT) if today_increase < 0.07 else  ( (self.data_daily.open[0] + self.data_daily.open[0] ) / 2) # 竹笋点 
             self.buy_date = self.data_daily.datetime.date(0).strftime("%Y-%m-%d")
             
             # ==================== 统计 ====================
