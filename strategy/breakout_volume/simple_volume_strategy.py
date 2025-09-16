@@ -4,7 +4,7 @@ import pandas as pd
 import logging  
 
 import pandas_market_calendars as mcal
-from strategy.breakout_volume.sensitive_param import  VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER , SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
+from strategy.breakout_volume.sensitive_param import MAX_JUMP_DOWN_PERCENT, VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER , SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
    
@@ -53,9 +53,9 @@ class SimpleVolumeStrategy(bt.Strategy):
         
 
         # 【DEPRECATED】从昨天最低点 到今天收盘 没有跳空下跌4%以上    -  
-        #if (self.data_daily.low[-1]  > close) and ((self.data_daily.low[-1] - close) > (self.data_daily.close[-1] * MAX_JUMP_DOWN_PERCENT)):   
+        if (self.data_daily.low[-1]  > close) and ((self.data_daily.low[-1] - close) > (self.data_daily.close[-1] * MAX_JUMP_DOWN_PERCENT)):   
             #print(f"[{self.data_daily.datetime.date(0)}]Jump down too much.")
-           # return False
+            return False
         
          
         if  min(self.data_daily.low[0] , self.data_daily.low[-1] ) < (close * STOP_LOSS_THRESHOLD):   
@@ -96,11 +96,11 @@ class SimpleVolumeStrategy(bt.Strategy):
         # =================================================== Backtest ==============================================================
         # ------------ 买入 ----------
       
-        if  self.p.is_backtest and not self.position and  (self.data_mins.datetime.time(0) == time(13, 00) or self.data_mins.datetime.time(0) == time(13, 30) ) and  self.check_buy_signal():
+        if  self.p.is_backtest and not self.position and  (self.data_mins.datetime.time(0) == time(13, 00) or self.data_mins.datetime.time(0) == time(13, 30)  or self.data_mins.datetime.time(0) == time(14, 30) ) and  self.check_buy_signal():
             
-           # if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
-             #           "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
-             #  return
+            if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
+                        "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
+               return
            
             today_increase = (self.data_daily.close[0] - self.data_daily.open[0]) /self.data_daily.open[0]
             self.profile_rate = TAKE_PROFIT_PERCENT_SMALL if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE

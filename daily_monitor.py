@@ -38,7 +38,7 @@ SEND_MESSAGE = False
 def fetch_recent_data(symbol):
     try:
         end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=60)  # load extra data to ensure we have enough for the strategy   
+        start_date = end_date - pd.Timedelta(days=90)  # load extra data to ensure we have enough for the strategy   
         
         # *********** yfinance *************  
         df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)

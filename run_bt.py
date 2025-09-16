@@ -83,7 +83,7 @@ class PandasData(bt.feeds.PandasData):
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-    
+   
    
     '''   
         start="2025-01-01"
@@ -97,9 +97,9 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
      start="2022-01-01"
     end="2022-12-30"   # 熊市 2022   #  12 个月   
    
+    
     start="2023-08-20"
     end="2025-08-30"     # 最近 两年
-   
      
         start="2022-10-11"
     end="2025-02-20"     # 牛市 2022 - 2025
@@ -123,15 +123,16 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     #end="2025-08-28"   # 30 分钟数据 7-8 月数据
     
     
-    # ************ IB
-    start="2024-09-01"
-    end="2025-08-28"   # 去年一年
-    #start="2023-09-01"
-    #end="2024-08-28"   #  23 - 24 年
+    # ************ IB  VOL only  ************
+    #start="2024-09-01"
+    #end="2025-08-28"   # 去年一年
+    start="2023-09-01"
+    end="2024-08-28"   #  23 - 24 年
     #start="2022-09-01"
     #end="2023-08-28"   # 22 - 23 年
     data_srouce = fetch_data_from_ibkr(symbols,start=start, end=end ,useRTH = True, is_connect_n_download=False)
- 
+    # ************************************ 
+    
     #data_srouce = fetch_yahoo_data(symbols, start=start, end=end)   
     total_trading_days =  len( pd.bdate_range(start=start, end=end)) 
     
@@ -150,6 +151,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         cerebro.resampledata(data_min,
                              timeframe=bt.TimeFrame.Days,
                              compression=1)        # datas[1]
+       
         cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,
@@ -158,9 +160,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
             is_backtest = True,
         ) 
-        
-       
         """   
+         
            cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
