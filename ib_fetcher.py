@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
+from datetime import datetime, date
 import math
 import pandas as pd
 from ib_insync import IB, Stock, util
@@ -39,6 +39,7 @@ def fetch_data_from_ibkr(
     if interval not in _INTERVAL_TO_BARSIZE:
         raise ValueError(f"不支持的 interval: {interval}；可选: {list(_INTERVAL_TO_BARSIZE.keys())}")
     bar_size = _INTERVAL_TO_BARSIZE[interval] 
+    end_str = end if end != "" else date.today().strftime("%Y-%m-%d")
 
     data_dict = {} 
        
@@ -46,7 +47,7 @@ def fetch_data_from_ibkr(
     for symbol in symbols:
         str_a = "useRTH" if useRTH else "all_day"
         csv_path = "data/daily" if is_daily_scan else "data"
-        file_path = os.path.join(csv_path, f"{symbol}_{interval}_{start}_{end}_{str_a}IB.csv")
+        file_path = os.path.join(csv_path, f"{symbol}_{interval}_{start}_{end_str}_{str_a}IB.csv")
     
         if os.path.exists(file_path):
             df = pd.read_csv(file_path, index_col="Date", parse_dates=True)
@@ -106,9 +107,10 @@ def fetch_data_from_ibkr(
 def download_daily_last_3_months(
     symbol: str,
     ib: IB = None,
-) -> pd.DataFrame:
-  
-    result = fetch_data_from_ibkr(ib = ib,symbols=symbol,duration_str="3 M" ,interval="1d" , end = "" ,useRTH=True , is_daily_scan = True, is_connect_n_download=True)
+    end: str = None,
+    is_connect_n_download: bool = True,
+) -> pd.DataFrame: 
+    result = fetch_data_from_ibkr(ib = ib,symbols=symbol,duration_str="3 M" ,interval="1d" , end = end ,useRTH=True , is_daily_scan = True, is_connect_n_download=is_connect_n_download)
     return result[symbol]
  
 def ib_connect() -> IB:

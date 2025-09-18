@@ -33,32 +33,8 @@ logging.basicConfig(
 
 ONLY_SCAN_LAST_DAY = False 
 SEND_MESSAGE = False
+CONNECT_N_DOWNLOAD = False 
 
-# fetcher
-def fetch_recent_data(symbol,ib):
-    try:  
-        df = download_daily_last_3_months(symbol = symbol, ib = ib)
-
-        if df.empty:
-            logging.warning(f"No data for {symbol}")
-            return None
-
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = [col[0].capitalize() for col in df.columns]
-        else:
-            df.columns = [col.capitalize() for col in df.columns]
-
-        required_columns = ["Open", "High", "Low", "Close", "Volume"]
-        if not set(required_columns).issubset(df.columns):
-            logging.warning(f"Missing columns in {symbol}: {df.columns.tolist()}")
-            return None
-
-        df = df[required_columns]
-        df.dropna(inplace=True)
-        return df
-    except Exception as e:
-        logging.warning(f"Error fetching data for {symbol}: {e}")
-        return None
     
 class CustomPandasData(bt.feeds.PandasData):
     params = (
@@ -91,9 +67,10 @@ def main():
     symbols = FINAL_SYMBOLS
     alert = False
     messages = []
-    ib = ib_connect()
+    
+    ib = ib_connect() if CONNECT_N_DOWNLOAD else None
     for symbol in symbols: 
-        df = fetch_recent_data(symbol,ib)
+        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="", is_connect_n_download= CONNECT_N_DOWNLOAD)
         if df is None:
             continue 
     
@@ -124,7 +101,8 @@ def main():
        # except Exception as e:
           #  logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
                
-    ib_disconnect(ib)
+    if CONNECT_N_DOWNLOAD:
+        ib_disconnect(ib)
     if SEND_MESSAGE:    # send summary only when scanning last day
         if alert: 
             final_message = "\n".join(messages)
