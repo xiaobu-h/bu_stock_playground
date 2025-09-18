@@ -21,7 +21,7 @@ class SimpleVolumeStrategy(bt.Strategy):
     
     def __init__(self): 
         self.data_mins = self.datas[0]
-         
+        #self.data_daily =self.datas[0]
         self.data_daily =  self.datas[1] if self.p.is_backtest else self.datas[0]
         self.order = None
         self.entry_price = None
@@ -52,7 +52,7 @@ class SimpleVolumeStrategy(bt.Strategy):
             return False
         
 
-        # 【DEPRECATED】从昨天最低点 到今天收盘 没有跳空下跌4%以上    -  
+        #  从昨天最低点 到今天收盘 没有跳空下跌4%以上    -  
         if (self.data_daily.low[-1]  > close) and ((self.data_daily.low[-1] - close) > (self.data_daily.close[-1] * MAX_JUMP_DOWN_PERCENT)):   
             #print(f"[{self.data_daily.datetime.date(0)}]Jump down too much.")
             return False
@@ -83,20 +83,22 @@ class SimpleVolumeStrategy(bt.Strategy):
             if len(self) < 2 or self.data_daily.datetime.date(0) != datetime.today().date():
                return
  
-            
         # ================================================== Daily Monitor =========================================================
         if  not self.p.is_backtest and self.check_buy_signal():
+            
             self.signal_today = True 
             logger = logging.getLogger(__name__)
-            profile_rate = TAKE_PROFIT_PERCENT_SMALL if ( (self.data_daily.close[0] - self.data_daily.open[0]) / self.data_daily.open[0]) < BAR else TAKE_PROFIT_PERCENT_LARGE
-            logger.info(f"[{self.data_daily.datetime.date(0)}] VOL x 2 - {self.p.symbol} - win: {round(self.data_daily.close[0] * profile_rate, 3 )} - stop:{round(self.data_daily.low[0], 3 )} ")
+            today_increase = (self.data_daily.close[0] - self.data_daily.open[0]) /self.data_daily.open[0]
+            profile_rate = TAKE_PROFIT_PERCENT_SMALL if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE
+            zhusun_price =  self.data_daily.low[0] * ZHUSUN_PERCENT if today_increase < 0.07 else  ( (self.data_daily.open[0] + self.data_daily.open[0] ) / 2) # 竹笋点 
+            logger.info(f"[{self.data_daily.datetime.date(0)}] VOL x 2 - {self.p.symbol} - win: {round(self.data_daily.close[0] * profile_rate, 3 )} - stop:{round(zhusun_price, 3 )} ")
             return 
         
         
         # =================================================== Backtest ==============================================================
         # ------------ 买入 ----------
-      
-        if  self.p.is_backtest and not self.position and  (self.data_mins.datetime.time(0) == time(13, 00) or self.data_mins.datetime.time(0) == time(13, 30)  or self.data_mins.datetime.time(0) == time(14, 30) ) and  self.check_buy_signal():
+      # 
+        if  self.p.is_backtest and not self.position and  (self.data_mins.datetime.time(0) == time(13, 00) or self.data_mins.datetime.time(0) == time(13, 30)  or self.data_mins.datetime.time(0) == time(14, 30) )  and self.check_buy_signal():
             
             if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
                         "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30"  ]:
@@ -106,7 +108,7 @@ class SimpleVolumeStrategy(bt.Strategy):
             self.profile_rate = TAKE_PROFIT_PERCENT_SMALL if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE
             self.entry_price = self.data_daily.close[0]
            
-                
+            
             self.zhusun_price =  (self.data_daily.low[0] * ZHUSUN_PERCENT) if today_increase < 0.07 else  ( (self.data_daily.open[0] + self.data_daily.open[0] ) / 2) # 竹笋点 
             self.buy_date = self.data_daily.datetime.date(0).strftime("%Y-%m-%d")
             

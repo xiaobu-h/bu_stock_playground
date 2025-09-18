@@ -1,8 +1,7 @@
 
 import backtrader as bt
 import pandas as pd
-from ib_fetcher import fetch_data_from_ibkr
-from backtest_fetcher import fetch_yahoo_data
+from ib_fetcher import fetch_data_from_ibkr, ib_connect, ib_disconnect 
 from strategy.attack_day.attack_day_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
 from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
@@ -64,7 +63,7 @@ def export_global_csv(global_stats, filepath: str):
     net_profit = round(total_win_money + total_loss_money,2) 
     print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
 
-    print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0.0:.2f}")
+    print(f"Total Wins={total_wins} | Total Losses={total_losses} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
 
     return total_buys, net_profit
     
@@ -83,86 +82,46 @@ class PandasData(bt.feeds.PandasData):
 
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
-   
-   
-    '''   
-        start="2025-01-01"
-    end="2025-08-28"   # 近期 2025   8个月
-   start="2020-01-01"
-    end="2025-06-01"   # 长期  # 65 个月
-      
-   start="2024-11-01"
-    end="2025-08-30"   # 近10个月
     
-     start="2022-01-01"
-    end="2022-12-30"   # 熊市 2022   #  12 个月   
-   
-    
-    start="2023-08-20"
-    end="2025-08-30"     # 最近 两年
-     
-        start="2022-10-11"
-    end="2025-02-20"     # 牛市 2022 - 2025
-     
-      start="2025-06-01"
-    end="2025-08-27"  # 近期  近三个月
-    
-    
-    start="2025-02-24"
-    end="2025-04-07"   # 熊市 2025关税
-
-  
-    '''
-    #start="2024-10-01"
-    #end="2024-11-30"   # 30 分钟数据 2 - 3 月数据
-    
-    #start="2025-05-01"
-    #end="2025-06-28"   # 30 分钟数据 5 - 6 月数据
-    
-    #start="2025-07-02"
-    #end="2025-08-28"   # 30 分钟数据 7-8 月数据
-    
-    
-    # ************ IB  VOL only  ************
-    #start="2024-09-01"
-    #end="2025-08-28"   # 去年一年
-    start="2023-09-01"
-    end="2024-08-28"   #  23 - 24 年
+    start="2024-09-01"
+    end="2025-08-28"   # 去年一年
+    #start="2023-09-01"
+    #end="2024-08-28"   #  23 - 24 年
     #start="2022-09-01"
     #end="2023-08-28"   # 22 - 23 年
-    data_srouce = fetch_data_from_ibkr(symbols,start=start, end=end ,useRTH = True, is_connect_n_download=False)
-    # ************************************ 
+    #start="2021-09-01"
+    #end="2022-08-28"   # 21 - 22 年
     
-    #data_srouce = fetch_yahoo_data(symbols, start=start, end=end)   
-    total_trading_days =  len( pd.bdate_range(start=start, end=end)) 
+    #start="2023-09-10"
+    #end="2025-09-10"   # 两年
+    
+    is_connect_n_download = False
+    ib = None
+    #if is_connect_n_download:
+   #     ib = ib_connect()
+    data_srouce = fetch_data_from_ibkr(symbols,start=start, end=end ,useRTH = True, ib = ib, is_connect_n_download=is_connect_n_download, interval="1d", duration_str="1 Y")
+    #if is_connect_n_download:
+     #   ib_disconnect(ib)
+   
     
     all_bars = []
-    all_days = []
+    all_days = [] 
+    total_trading_days =  len( pd.bdate_range(start=start, end=end)) 
     for symbol, df in data_srouce.items():
         df = df[["Open", "High", "Low", "Close", "Volume"]]
         
 
         cerebro = bt.Cerebro()
-        data_min = PandasData(dataname=df , timeframe=bt.TimeFrame.Minutes, compression=60)
+        data = PandasData(dataname=df)
+        cerebro.adddata(data)
         
-        cerebro.adddata(data_min)  # datas[0]
         
          # == 从 小时线 数据重采样成日线 ===
-        cerebro.resampledata(data_min,
-                             timeframe=bt.TimeFrame.Days,
-                             compression=1)        # datas[1]
-       
+       # data_min = PandasData(dataname=df , timeframe=bt.TimeFrame.Minutes, compression=60)
+        #cerebro.resampledata(data_min,
+                       #      timeframe=bt.TimeFrame.Days,
+                        #    compression=1)        # datas[1]
         cerebro.addstrategy(
-            SimpleVolumeStrategy,
-            printlog=False,
-            symbol=symbol, 
-            only_scan_last_day=False,
-            global_stats = global_stats,
-            is_backtest = True,
-        ) 
-        """   
-         
-           cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,
             printlog=False,
             symbol=symbol,
@@ -170,14 +129,22 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
             is_backtest = True,
         ) 
-         
+        """      
+           cerebro.addstrategy(
+            SimpleVolumeStrategy,
+            printlog=False,
+            symbol=symbol, 
+            only_scan_last_day=False,
+            global_stats = global_stats,
+            is_backtest = True,
+        ) 
+        
         cerebro.addstrategy(
             AttackReversalStrategy,
             printlog=False,
             symbol=symbol,
             global_stats = global_stats,
         )
-        
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades") 

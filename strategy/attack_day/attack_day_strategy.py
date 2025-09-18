@@ -1,7 +1,7 @@
 import backtrader as bt
 import pandas as pd
 import logging
-from strategy.attack_day.sensitive_param import VOLUME_MULTIPLIER,YESTERDAY_VOLUME_DECREASE_PERCENT ,LOOKBACK_DAYS,MIN_DROP_FROM_LATST_5_DAYS,STOP_LOSS_THRESHOLD,TAKE_PROFIT_PERCENT 
+from strategy.attack_day.sensitive_param import VOLUME_MULTIPLIER,YESTERDAY_VOLUME_DECREASE_PERCENT ,LOOKBACK_DAYS,MIN_DROP_FROM_LATST_5_DAYS,STOP_LOSS_THRESHOLD,TAKE_PROFIT_PERCENT ,JUMP_HIGH_OPEN
 
 
 ONE_TIME_SPENDING_ATTACK = 20000  # 每次买入金额
@@ -24,34 +24,43 @@ class AttackReversalStrategy(bt.Strategy):
         self.entry_price = 0.0 
         self.signal_today = False
         self.global_stats= self.p.global_stats
-       
+        self.profile = None
        
  
         
     def is_attack_setup(self):
         
-        if self.data.close[0] <= self.data.open[0]: 
+        if self.data.close[0] <= self.data.open[0]:  
             return False
         
-       
+        if self.data.close[0] < (self.data.open[-1] * 0.995 ):     # 今天收盘 高于 昨天开盘
+            return False
+        
+        
         if not (
-            self.data.close[-1] < self.data.close[-2] and
-            self.data.close[-1] < self.data.open[-1] and
-            self.data.close[-1] < self.data.close[-3] and
-            self.data.close[-1] < self.data.close[-4] and
-            self.data.close[-1] < self.data.close[-5] 
+            #self.data.close[-1] < self.data.close[-2] and   # 昨天收盘 低于 前天收盘
+            self.data.close[-1] < self.data.open[-1] and    # 昨天是 阴线
+            #self.data.close[-2] < self.data.open[-2] and    # 昨天是 阴线
+            self.data.close[-1] < self.data.close[-3] and   # 昨天收盘 低于 大前天收盘
+            self.data.close[-1] < self.data.close[-4] and   # 昨天收盘 低于 三天前收盘
+            self.data.close[-1] < self.data.close[-5] and   # 昨天收盘 低于 四天前收盘
+            self.data.low[-1] < self.data.low[-2]  
+           # self.data.low[-1] < self.data.low[-3]  
+           # self.data.low[-2] < self.data.low[-3]  
+            
         ): 
             return False
 
-        if  ( (self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < MIN_DROP_FROM_LATST_5_DAYS and
+        if  ((self.data.close[-5] - self.data.low[-1]) / self.data.low[-1] < MIN_DROP_FROM_LATST_5_DAYS and
              (self.data.close[-6] - self.data.low[-1]) / self.data.low[-1] < MIN_DROP_FROM_LATST_5_DAYS ):
             return False
-         
-        
+   
 
         if self.data.volume[0] <= self.vol_sma5[0] * VOLUME_MULTIPLIER:
             return False
-
+        
+        if (self.data.open[0] >  self.data.close[-1]) and ((self.data.open[0] - self.data.close[-1]) /self.data.close[-1] > JUMP_HIGH_OPEN ): #跳空高开 小于x%
+            return False
 
         if self.data.volume[0] < ( self.data.volume[-1] * YESTERDAY_VOLUME_DECREASE_PERCENT ) :
             return False
@@ -78,8 +87,12 @@ class AttackReversalStrategy(bt.Strategy):
             if self.is_attack_setup(): 
                 self.signal_today = True
                 self.entry_price = self.data.close[0]
-                self.stop_loss_price = self.data.low[0]  * STOP_LOSS_THRESHOLD 
-                
+                today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
+                self.profile = TAKE_PROFIT_PERCENT if today_increase < 0.07 else 1.038 
+                #止盈
+                #self.profile = TAKE_PROFIT_PERCENT 
+                self.stop_loss_price = self.data.low[0]  * STOP_LOSS_THRESHOLD if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+             
                 logger = logging.getLogger(__name__)
                 logger.info(f"[{self.data.datetime.date(0)}] Attack Day - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT, 3 )} - stop:{round(self.stop_loss_price, 3 )} ")
                       
@@ -92,6 +105,8 @@ class AttackReversalStrategy(bt.Strategy):
                 return
  
         if self.position:
+            today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
+           
             # ======= 止损 ===========
             if   (self.data.low[0] < self.stop_loss_price): 
               
@@ -105,15 +120,15 @@ class AttackReversalStrategy(bt.Strategy):
                 return
             
              # ======== 止盈 ===========
-            if   (self.data.high[0] >= self.entry_price * TAKE_PROFIT_PERCENT) :
+            if   (self.data.high[0] >= self.entry_price * self.profile) :
                 # ==================== 统计 ====================
-                self.global_stats[date]["wins"] += 1  # 累加到全局
-                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (TAKE_PROFIT_PERCENT - 1)
+                self.global_stats[date]["wins"] += 1  
+                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profile - 1)
                 self.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                  
                 self.close()
                 return
                 
-            
+              
               

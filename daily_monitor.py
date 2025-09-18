@@ -6,7 +6,7 @@ import datetime
 import pandas_market_calendars as mcal
 import os
 
-from ib_fetcher import fetch_data_from_ibkr
+from ib_fetcher import fetch_data_from_ibkr,download_daily_last_3_months, ib_connect,ib_disconnect
 
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
@@ -35,17 +35,10 @@ ONLY_SCAN_LAST_DAY = False
 SEND_MESSAGE = False
 
 # fetcher
-def fetch_recent_data(symbol):
-    try:
-        end_date = pd.Timestamp.today() + pd.Timedelta(days=1)
-        start_date = end_date - pd.Timedelta(days=90)  # load extra data to ensure we have enough for the strategy   
-        
-        # *********** yfinance *************  
-        df = yf.download(symbol, start=start_date.strftime("%Y-%m-%d"), end=end_date.strftime("%Y-%m-%d"), interval="1d", auto_adjust=False)
-        # *********** IBKR *************  
-       # df_data = fetch_data_from_ibkr(symbol, start=start_date.strftime("2025-08-01"), end=end_date.strftime("2025-09-12"), interval="1d", is_daily_scan = True)
-        #df = df_data[symbol]
-        
+def fetch_recent_data(symbol,ib):
+    try:  
+        df = download_daily_last_3_months(symbol = symbol, ib = ib)
+
         if df.empty:
             logging.warning(f"No data for {symbol}")
             return None
@@ -83,7 +76,7 @@ class CustomPandasData(bt.feeds.PandasData):
 def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
     data = CustomPandasData(dataname=df)
     cerebro = bt.Cerebro()
-    cerebro.adddata(data) 
+    cerebro.adddata(data)
     cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=ONLY_SCAN_LAST_DAY)    # ONLY Scan Last Day
    
     results = cerebro.run() 
@@ -98,9 +91,9 @@ def main():
     symbols = FINAL_SYMBOLS
     alert = False
     messages = []
-    
+    ib = ib_connect()
     for symbol in symbols: 
-        df = fetch_recent_data(symbol)
+        df = fetch_recent_data(symbol,ib)
         if df is None:
             continue 
     
@@ -131,7 +124,7 @@ def main():
        # except Exception as e:
           #  logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
                
- 
+    ib_disconnect(ib)
     if SEND_MESSAGE:    # send summary only when scanning last day
         if alert: 
             final_message = "\n".join(messages)

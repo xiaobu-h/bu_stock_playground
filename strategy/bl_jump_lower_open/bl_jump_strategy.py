@@ -3,7 +3,7 @@ from datetime import datetime ,time
 from collections import defaultdict
 import pandas as pd 
 import logging
-from strategy.bl_jump_lower_open.sensitive_param import VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
+from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT_LARGE, BAR,VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
  
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
@@ -29,7 +29,8 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         self.zhusun_price = None   
         self.global_stats = self.p.global_stats
         self.ordered = False
-        self.symbol = self.p.symbol
+        self.symbol = self.p.symbol 
+        self.profile = None
        
 
     def check_buy_signal(self): 
@@ -44,7 +45,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if close <  open_:    
             return False
         
-        if (close < low_band)  | (open_ >= low_band ):  # cross over Bollinger low band
+        if (close < low_band)  or (open_ >= low_band ):  # cross over Bollinger low band
             return False
         
         if ((low_band - open_) / low_band) < CROSS_DEEP_PCT:     
@@ -80,9 +81,15 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
                return
         # ================================================== Daily Monitor =========================================================
         if  not self.p.is_backtest and self.check_buy_signal():
+            low_band = self.boll.lines.bot[0]
             self.signal_today = True
+            
+            today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
+            self.profile = TAKE_PROFIT_PERCENT if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE 
+            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+            
             logger = logging.getLogger(__name__)
-            logger.info(f"[{date}] Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*TAKE_PROFIT_PERCENT, 3 )} - stop:{round((self.data.low[0] * STOP_LOSS_THRESHOLD), 3 )}")
+            logger.info(f"[{date}] Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*self.profile, 3 )} - stop:{round(self.zhusun_price, 3 )}; VOL:{round(self.data.volume[0] /self.vol_sma[0],2)} - increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - cross:{round((low_band - self.data.open[0]) / low_band *100,1)}%")
             return
             
             
@@ -99,9 +106,11 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             self.global_stats[date]["buy_symbols"].append(self.p.symbol)
             # ==============================================
  
-            self.entry_price = self.data.close[0]
-            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD
-             
+            self.entry_price = self.data.close[0]   
+            today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
+            self.profile = TAKE_PROFIT_PERCENT if today_increase < 0.07 else 1.04 
+            self.zhusun_price = self.data.low[0]  * STOP_LOSS_THRESHOLD if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+            
             self.ordered = True
             '''
              # 重复添加 止盈止损判断 以统计 第二天第一个小时的bar  因为在 self.buy()之后 这个bar会被跳过
@@ -140,18 +149,17 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
                 return
 
             # 止盈
-            if high >= self.entry_price * TAKE_PROFIT_PERCENT:
+            if high >= self.entry_price * self.profile:
                 
                 # ==================== 统计 ====================
                 self.global_stats[date]["wins"] += 1  
-                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (TAKE_PROFIT_PERCENT - 1)
+                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (self.profile - 1)
                 self.global_stats[date]["sell_symbols"].append(self.p.symbol)
                 # ==============================================
                 self.ordered = False
                 self.close()
                 return
-            
-           
+          
  
            
 def is_quadruple_witching(date) -> bool: 
