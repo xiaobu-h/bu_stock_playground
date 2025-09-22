@@ -3,7 +3,7 @@ from datetime import datetime ,time
 from collections import defaultdict
 import pandas as pd 
 import logging
-from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT_LARGE, BAR,VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
+from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT_LARGE,MEGA7, BAR,VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
  
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
@@ -14,7 +14,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
-        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": []}),
+        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [], "extra_counter":0}),
         ('is_backtest', False)
     )
  
@@ -31,7 +31,8 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         self.ordered = False
         self.symbol = self.p.symbol 
         self.profile = None
-       
+        self.index = 1 if self.p.symbol in MEGA7 else 0
+         
 
     def check_buy_signal(self): 
         if len(self.data) < LOOKBACK_DAYS:
@@ -48,16 +49,17 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if (close < low_band)  or (open_ >= low_band ):  # cross over Bollinger low band
             return False
         
-        if ((low_band - open_) / low_band) < CROSS_DEEP_PCT:     
+        if ((low_band - open_) / low_band) < CROSS_DEEP_PCT[self.index]:     
             return False
         
-        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER
+        vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY[self.index] if is_quadruple_witching(self.data.datetime.date(0)) else VOLUME_MULTIPLIER[self.index]
             
         if volume < avg_volume * vol:   #放量
             return False
         
-        if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT:    # 小于涨幅 bar
+        if abs(close - open_) <  open_ *  MIN_TOTAL_INCREASE_PERCENT[self.index]:    # 小于涨幅 bar
             return False
+         
         
         return True
 
@@ -65,15 +67,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         date = self.data.datetime.date(0).strftime("%Y-%m-%d")
 
         if date not in self.global_stats:
-            self.global_stats[date] = {
-            "buys": 0, 
-            "wins": 0, 
-            "losses": 0, 
-            "Win$": 0, 
-            "Loss$": 0, 
-            "buy_symbols": [],
-            "sell_symbols": []
-        } 
+            self.global_stats[date] = { "buys": 0, "wins": 0, "losses": 0,  "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols": [],"extra_counter": 0} 
             
         
         if self.p.only_scan_last_day:
@@ -83,13 +77,13 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if  not self.p.is_backtest and self.check_buy_signal():
             low_band = self.boll.lines.bot[0]
             self.signal_today = True
-            
+            extra_message = "[MEGA7]" if self.index == 1  else "" 
             today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
-            self.profile = TAKE_PROFIT_PERCENT if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE 
-            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+            self.profile = TAKE_PROFIT_PERCENT[self.index] if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE 
+            self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD[self.index] if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
             
             logger = logging.getLogger(__name__)
-            logger.info(f"[{date}] Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*self.profile, 3 )} - stop:{round(self.zhusun_price, 3 )}; VOL:{round(self.data.volume[0] /self.vol_sma[0],2)} - increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - cross:{round((low_band - self.data.open[0]) / low_band *100,1)}%")
+            logger.info(f"[{date}] {extra_message} Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*self.profile, 3 )} - stop:{round(self.zhusun_price, 3 )}; VOL:{round(self.data.volume[0] /self.vol_sma[0],2)} - increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - cross:{round((low_band - self.data.open[0]) / low_band *100,1)}%")
             return
             
             
@@ -98,9 +92,10 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         #and (self.data.datetime.time(0) == time(13,00) or self.data.datetime.time(0) == time(13,30)) 
         if  self.p.is_backtest and not self.ordered and  self.check_buy_signal():
            
-            if date in ["2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,
-                        "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30" , "2025-04-09"]:
-               return
+            if date in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,"2023-04-27", "2024-08-05", "2024-08-06",
+                            "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30" , "2023-03-16","2023-10-03", "2025-03-11",
+                            "2021-01-28", "2021-07-20" ,"2021-12-02","2022-01-10" ,"2022-01-24" ,"2022-02-24" ,"2022-04-28" ,"2022-04-25","2022-05-03" ,"2022-06-15", "2022-09-28", "2022-10-13","2023-03-13"]:
+                    return
             # ==================== 统计 ====================
             self.global_stats[date]["buys"] += 1
             self.global_stats[date]["buy_symbols"].append(self.p.symbol)
@@ -108,27 +103,11 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
  
             self.entry_price = self.data.close[0]   
             today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
-            self.profile = TAKE_PROFIT_PERCENT if today_increase < 0.07 else 1.04 
-            self.zhusun_price = self.data.low[0]  * STOP_LOSS_THRESHOLD if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+            self.profile = TAKE_PROFIT_PERCENT[self.index] if today_increase < 0.07 else TAKE_PROFIT_PERCENT_LARGE
+            self.zhusun_price = self.data.low[0]  * STOP_LOSS_THRESHOLD[self.index] if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
             
             self.ordered = True
-            '''
-             # 重复添加 止盈止损判断 以统计 第二天第一个小时的bar  因为在 self.buy()之后 这个bar会被跳过
-            if self.data.low[0] < self.zhusun_price:  
-                self.global_stats[sell_date]["losses"] += 1
-                size = int(ONE_TIME_SPENDING_BOLLINGER / self.entry_price)
-                self.global_stats[sell_date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
-                self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol) 
-                self.ordered = False
-                return
-                
-            if  self.data.high[0]  > self.entry_price * TAKE_PROFIT_PERCENT:
-                self.global_stats[sell_date]["wins"] += 1  
-                self.global_stats[sell_date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (TAKE_PROFIT_PERCENT - 1)
-                self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol) 
-                self.ordered = False
-                return
-            '''
+ 
             self.buy()
             
              

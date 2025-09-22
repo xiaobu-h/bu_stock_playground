@@ -33,7 +33,7 @@ logging.basicConfig(
 
 ONLY_SCAN_LAST_DAY = False 
 SEND_MESSAGE = False
-CONNECT_N_DOWNLOAD = False 
+CONNECT_N_DOWNLOAD = True 
 
     
 class CustomPandasData(bt.feeds.PandasData):
@@ -70,7 +70,7 @@ def main():
     
     ib = ib_connect() if CONNECT_N_DOWNLOAD else None
     for symbol in symbols: 
-        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="", is_connect_n_download= CONNECT_N_DOWNLOAD)
+        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="2025-09-19", is_connect_n_download= CONNECT_N_DOWNLOAD)
         if df is None:
             continue 
     
@@ -79,16 +79,16 @@ def main():
         #try: 
         if scan_stock(symbol,df, SimpleVolumeStrategy ):
             alert = True 
-            msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {(TAKE_PROFIT_PERCENT_SMALL -1 )*100:.1f}% or {(TAKE_PROFIT_PERCENT_LARGE -1)*100:.1f}% "
-            messages.append(msg) 
+            #msg = f"Buy Signal [Vol x 2]: {symbol} - take profit: {(TAKE_PROFIT_PERCENT_SMALL -1 )*100:.1f}% or {(TAKE_PROFIT_PERCENT_LARGE -1)*100:.1f}% "
+           # messages.append(msg) 
         #except Exception as e:
         #    logging.warning(f"Error Scanning [Vol x 2] for {symbol}: {e}")
         
         try:           
             if scan_stock(symbol, df, AttackReversalStrategy):
                 alert = True 
-                msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {(TAKE_PROFIT_ATTACK - 1)*100:.1f}%"
-                messages.append(msg) 
+                #msg = f"Buy Signal [Attack Day]: {symbol} - take profit: {(TAKE_PROFIT_ATTACK - 1)*100:.1f}%"
+               # messages.append(msg) 
         except Exception as e:
             logging.warning(f"Error Scanning [Attack Day] for {symbol}: {e}")
         
@@ -96,8 +96,8 @@ def main():
         #try:  
         if scan_stock(symbol,df, BollingerVolumeBreakoutStrategy):
             alert = True 
-            msg = f"Buy Signal [Bollinger Low Jump]: {symbol} - take profit: {(TAKE_PROFIT_BOLLINGER - 1)*100:.1f}%"
-            messages.append(msg)
+            #msg = f"Buy Signal [Bollinger Low Jump]: {symbol} - take profit: {(TAKE_PROFIT_BOLLINGER - 1)*100:.1f}%"
+            # messages.append(msg)
        # except Exception as e:
           #  logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
                
