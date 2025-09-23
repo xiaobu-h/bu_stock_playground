@@ -31,10 +31,14 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+# ==========================================
 ONLY_SCAN_LAST_DAY = False 
+
 SEND_MESSAGE = False
+
 CONNECT_N_DOWNLOAD = True 
 
+# ==========================================
     
 class CustomPandasData(bt.feeds.PandasData):
     params = (
@@ -70,7 +74,7 @@ def main():
     
     ib = ib_connect() if CONNECT_N_DOWNLOAD else None
     for symbol in symbols: 
-        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="2025-09-19", is_connect_n_download= CONNECT_N_DOWNLOAD)
+        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="", is_connect_n_download= CONNECT_N_DOWNLOAD)
         if df is None:
             continue 
     
