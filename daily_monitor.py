@@ -17,6 +17,7 @@ from strategy.attack_day.sensitive_param import  TAKE_PROFIT_PERCENT as TAKE_PRO
 from strategy.breakout_volume.sensitive_param import  TAKE_PROFIT_PERCENT_LARGE, TAKE_PROFIT_PERCENT_SMALL
 from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT as TAKE_PROFIT_BOLLINGER
 
+from strategy.strategy_util import PandasData
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
  
 
@@ -40,21 +41,11 @@ CONNECT_N_DOWNLOAD = True
 
 # ==========================================
     
-class CustomPandasData(bt.feeds.PandasData):
-    params = (
-        ('datetime', None),
-        ('open', 'Open'),
-        ('high', 'High'),
-        ('low', 'Low'),
-        ('close', 'Close'),
-        ('volume', 'Volume'),
-        ('openinterest', -1),
-    )
-
+ 
 
 # call scanner 
 def scan_stock(symbol, df, strategy_class=BollingerVolumeBreakoutStrategy ):
-    data = CustomPandasData(dataname=df)
+    data = PandasData(dataname=df)
     cerebro = bt.Cerebro()
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_class, symbol=symbol , only_scan_last_day=ONLY_SCAN_LAST_DAY)    # ONLY Scan Last Day

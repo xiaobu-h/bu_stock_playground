@@ -4,7 +4,7 @@ from collections import defaultdict
 import pandas as pd 
 import logging
 from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT_LARGE,MEGA7, BAR,VOLUME_FOR_QUADRUPLE_WITCH_DAY,LOOKBACK_DAYS, VOLUME_MULTIPLIER, TAKE_PROFIT_PERCENT, STOP_LOSS_THRESHOLD, CROSS_DEEP_PCT, MIN_TOTAL_INCREASE_PERCENT
- 
+from strategy.strategy_util import SIGNAL_SPIKE_DATE, is_quadruple_witching, log_buy, log_sell
 
 ONE_TIME_SPENDING_BOLLINGER = 20000  # 每次买入金额
 has_ordered = False
@@ -88,18 +88,13 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             
             
         # =================================================== Backtest ==============================================================
-        # ------------ 买入 ----------
-        #and (self.data.datetime.time(0) == time(13,00) or self.data.datetime.time(0) == time(13,30)) 
+        # ------------ 买入 ---------- 
         if  self.p.is_backtest and not self.ordered and  self.check_buy_signal():
            
-            if date in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,"2023-04-27", "2024-08-05", "2024-08-06",
-                            "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30" , "2023-03-16","2023-10-03", "2025-03-11",
-                            "2021-01-28", "2021-07-20" ,"2021-12-02","2022-01-10" ,"2022-01-24" ,"2022-02-24" ,"2022-04-28" ,"2022-04-25","2022-05-03" ,"2022-06-15", "2022-09-28", "2022-10-13","2023-03-13"]:
+            if date in SIGNAL_SPIKE_DATE:
                     return
-            # ==================== 统计 ====================
-            self.global_stats[date]["buys"] += 1
-            self.global_stats[date]["buy_symbols"].append(self.p.symbol)
-            # ==============================================
+          
+            log_buy(self.global_stats,date, self.p.symbol)
  
             self.entry_price = self.data.close[0]   
             today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
@@ -114,38 +109,24 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
         if  self.p.is_backtest and self.ordered and self.position:
             high = self.data.high[0]
             low = self.data.low[0]
-             # 止损
+             # ------------止损------------
             if low < self.zhusun_price:
-                
-                # ==================== 统计 ====================
+                if (self.p.printlog):
+                    print("LOSS - BL JUMP -", self.data.datetime.date(0))
                 size = int(ONE_TIME_SPENDING_BOLLINGER / self.entry_price)
-                self.global_stats[date]["losses"] += 1
-                self.global_stats[date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
-                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
+                log_sell(self.global_stats,date, (- size * (self.entry_price - self.zhusun_price)), self.p.symbol)
+                
                 self.ordered = False
                 self.close()
                 return
 
-            # 止盈
+            # ------------止盈------------
             if high >= self.entry_price * self.profile:
-                
-                # ==================== 统计 ====================
-                self.global_stats[date]["wins"] += 1  
-                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_BOLLINGER * (self.profile - 1)
-                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
+                log_sell(self.global_stats,date, ONE_TIME_SPENDING_BOLLINGER * (self.profile - 1), self.p.symbol)
+                if (self.p.printlog):
+                    print("Win - BL JUMP -", self.data.datetime.date(0))
                 self.ordered = False
                 self.close()
                 return
           
  
-           
-def is_quadruple_witching(date) -> bool: 
-    d = pd.Timestamp(date).tz_localize(None).normalize()
-    if d.month not in (3, 6, 9, 12):
-        return False 
-    third_fris = pd.date_range(start=f'{d.year}-01-01',
-                               end=f'{d.year}-12-31',
-                               freq='WOM-3FRI').normalize()
-    return d in third_fris

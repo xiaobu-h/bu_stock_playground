@@ -2,15 +2,13 @@ import backtrader as bt
 import pandas as pd
 import logging
 from strategy.attack_day.sensitive_param import VOLUME_MULTIPLIER,YESTERDAY_VOLUME_DECREASE_PERCENT ,LOOKBACK_DAYS,MIN_DROP_FROM_LATST_5_DAYS,STOP_LOSS_THRESHOLD,TAKE_PROFIT_PERCENT ,JUMP_HIGH_OPEN,MEGA7
-
+from strategy.strategy_util import SIGNAL_SPIKE_DATE, log_sell,log_buy
 
 ONE_TIME_SPENDING_ATTACK = 20000  # 每次买入金额
 
 
 class AttackReversalStrategy(bt.Strategy):
-    
- 
-    
+
     params = (
         ('only_scan_last_day', True),
         ('printlog', False),
@@ -80,9 +78,7 @@ class AttackReversalStrategy(bt.Strategy):
         
         # ======== 买入 ===========
         if not self.position:
-            if date in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,"2023-04-27", "2024-08-05", "2024-08-06",
-                            "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30" , "2023-03-16","2023-10-03", "2025-03-11",
-                            "2021-01-28", "2021-07-20" ,"2021-12-02","2022-01-10" ,"2022-01-24" ,"2022-02-24" ,"2022-04-28" ,"2022-04-25","2022-05-03" ,"2022-06-15", "2022-09-28", "2022-10-13","2023-03-13"]:
+            if date in SIGNAL_SPIKE_DATE:
                     return
             
             if self.is_attack_setup(): 
@@ -100,11 +96,8 @@ class AttackReversalStrategy(bt.Strategy):
                 logger.info(f"[{self.data.datetime.date(0)}] {extra_message}Attack Day - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT[self.index], 3 )} - stop:{round(self.stop_loss_price, 3 )} ")
                       
                 self.buy()  
-                   
-                # ==================== 统计 ====================
-                self.global_stats[date]["buys"] += 1
-                self.global_stats[date]["buy_symbols"].append(self.p.symbol)
-                # ==============================================
+                log_buy(self.global_stats,date, self.p.symbol)
+                
                 return
  
         if self.position:
@@ -112,26 +105,21 @@ class AttackReversalStrategy(bt.Strategy):
            
             # ======= 止损 ===========
             if   (self.data.low[0] < self.stop_loss_price): 
-              
-                # ==================== 统计 ====================
-                self.global_stats[date]["losses"] += 1
                 size = int(ONE_TIME_SPENDING_ATTACK / self.entry_price)
-                self.global_stats[date]["Loss$"] -= size * (self.entry_price - self.stop_loss_price)
-                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
+                log_sell(self.global_stats,date, (- size * (self.entry_price - self.stop_loss_price)), self.p.symbol)
+                if (self.p.printlog):
+                    print("LOSS - Attack Day -", self.data.datetime.date(0))
                 self.close()
                 return
             
              # ======== 止盈 ===========
-            if   (self.data.high[0] >= self.entry_price * self.profile) :
-                # ==================== 统计 ====================
-                self.global_stats[date]["wins"] += 1  
-                self.global_stats[date]["Win$"] += ONE_TIME_SPENDING_ATTACK * (self.profile - 1)
-                self.global_stats[date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
-                 
+            if   (self.data.high[0] >= (self.entry_price * self.profile)) :
+                log_sell(self.global_stats,date, ONE_TIME_SPENDING_ATTACK * (self.profile - 1), self.p.symbol)
+                if (self.p.printlog):
+                    print("Win - Attack Day -" , self.data.datetime.date(0))
                 self.close()
                 return
                 
+              
               
               

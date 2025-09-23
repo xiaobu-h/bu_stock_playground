@@ -9,9 +9,10 @@ from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
 from collections import defaultdict
 from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
 import csv
- 
 
+from strategy.strategy_util import PandasData
 import statistics
+
 
 global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [],"extra_counter":0})
  
@@ -69,20 +70,7 @@ def export_global_csv(global_stats, filepath: str):
     print(f"Total Wins={total_wins} | Total Losses={total_losses} | Extra={total_extra_counter} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
 
     return total_buys, net_profit
-    
-
-class PandasData(bt.feeds.PandasData):
-    params = (
-        ("datetime", None),
-        ("open", "Open"),
-        ("high", "High"),
-        ("low", "Low"),
-        ("close", "Close"),
-        ("volume", "Volume"),
-        ("openinterest", -1),
-    )
-
-
+   
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
@@ -135,16 +123,15 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
                     #         timeframe=bt.TimeFrame.Days,
                      #       compression=1)        # datas[1]
                      
+      
         cerebro.addstrategy(                 #  2
             AttackReversalStrategy,
             printlog=False,
             symbol=symbol,
             global_stats = global_stats,
         )
-        
-        
         """      
-        cerebro.addstrategy(
+         cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,                   #   1
             symbol=symbol, 
@@ -153,16 +140,17 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             is_backtest = True,
             is_hourly_backtest = False,
         )
-       
-             
-           cerebro.addstrategy(
+         
+        
+          cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,       #3
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
             global_stats = global_stats,
             is_backtest = True,
-        ) 
+        )    
+           
         """
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades") 
@@ -192,9 +180,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 
 # manually run the backtest
 
-if __name__ == "__main__":
-   #  total_trading_days = run(TEST_SYMBOLS)
-    #run(["AAPL", "MSFT", "NVDA", "GOOG", "TSLA", "AMD"  ])  #9:6
+if __name__ == "__main__":  
     avg_bars,total_trading_days = run( FINAL_SYMBOLS) 
     
      

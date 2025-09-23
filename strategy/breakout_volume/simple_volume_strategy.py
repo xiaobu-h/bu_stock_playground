@@ -4,6 +4,8 @@ import pandas as pd
 import logging  
 import pandas_market_calendars as mcal
 from strategy.breakout_volume.sensitive_param import MAX_JUMP_DOWN_PERCENT, VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER ,MEGA7, SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
+from strategy.strategy_util import SIGNAL_SPIKE_DATE , is_quadruple_witching , log_buy, log_sell
+
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
    
@@ -98,9 +100,7 @@ class SimpleVolumeStrategy(bt.Strategy):
             if  self.p.is_backtest and not self.position  and self.check_buy_signal():
                 self.is_targeted = False
  
-                if date in ["2025-04-09", "2024-12-20" ,"2020-02-28", "2020-05-29", "2020-06-19",  "2020-11-30","2020-12-18","2021-01-06","2022-01-04","2022-03-18", "2022-06-17" ,"2022-06-24" ,"2023-04-27", "2024-08-05", "2024-08-06",
-                            "2022-11-30", "2023-01-31", "2023-05-31" , "2023-11-30",  "2024-03-15" , "2024-05-31" , "2024-09-20", "2025-03-21" , "2025-04-07", "2025-05-30" , "2023-03-16","2023-10-03", "2025-03-11",
-                            "2021-01-28", "2021-07-20" ,"2021-12-02","2022-01-10" ,"2022-01-24" ,"2022-02-24" ,"2022-04-28" ,"2022-04-25","2022-05-03" ,"2022-06-15", "2022-09-28", "2022-10-13","2023-03-13"]:
+                if date in SIGNAL_SPIKE_DATE:
                     return
                 
                 today_increase = (self.data_daily.close[0] - self.data_daily.open[0]) /self.data_daily.open[0]
@@ -119,58 +119,49 @@ class SimpleVolumeStrategy(bt.Strategy):
                     self.global_stats[date]["extra_counter"] += 1
                     self.is_targeted = True
             
-                
-                # ==================== 统计 ====================
-                self.global_stats[date]["buys"] += 1
-                self.global_stats[date]["buy_symbols"].append(self.p.symbol)
-                # ==============================================
-            
+                log_buy(self.global_stats, date, self.p.symbol)
+          
 
                 # 重复添加 止盈止损判断 以统计 第二天第一个小时的bar  因为在 self.buy()之后 这个bar会被跳过
                 if self.p.is_hourly_backtest:
-                    if self.data_mins.low[0] < self.zhusun_price:  
-                        self.global_stats[sell_date]["losses"] += 1
+                    if self.data_mins.low[0] < self.zhusun_price:   
                         size = int(ONE_TIME_SPENDING / self.entry_price)
-                        self.global_stats[sell_date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
-                        self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol) 
+                        log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.p.symbol)
                         return
                         
                     if  self.data_mins.high[0]  > self.entry_price * self.profile_rate:
-                        self.global_stats[sell_date]["wins"] += 1  
-                        self.global_stats[sell_date]["Win$"] += ONE_TIME_SPENDING * (self.profile_rate - 1)
-                        self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol) 
+                        log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.p.symbol)
                         return
             
                 self.order = self.buy()    
         
         if  self.p.is_backtest and (self.position.size > 0 ): 
         
-            
+         
+             # 止损
+            if self.data_mins.low[0] < self.zhusun_price:  
+                 
+                size = int(ONE_TIME_SPENDING / self.entry_price) 
+                log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.p.symbol)
+                 
+                if (self.p.printlog):
+                    print("LOSS - VOL * 2 -", self.data_daily.datetime.date(0))
+                self.close()
+                return
+               
             # 止盈
             if  self.data_mins.high[0]  > self.entry_price * self.profile_rate:
               
                 if self.is_targeted:
-                    
                     self.global_stats[date]["extra_counter"] += 1000000
-                # ==================== 统计 ====================
-                self.global_stats[sell_date]["wins"] += 1  # 累加到全局
-                self.global_stats[sell_date]["Win$"] += ONE_TIME_SPENDING * (self.profile_rate - 1)
-                self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
+                    
+                    
+                log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.p.symbol)
+        
                 self.close()
+                if (self.p.printlog):
+                    print("Win - VOL * 2 -", self.data_daily.datetime.date(0))
                 return
-             # 止损
-            if self.data_mins.low[0] < self.zhusun_price:  
-                
-                # ==================== 统计 ====================
-                self.global_stats[sell_date]["losses"] += 1
-                size = int(ONE_TIME_SPENDING / self.entry_price)
-                self.global_stats[sell_date]["Loss$"] -= size * (self.entry_price - self.zhusun_price)
-                self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol)
-                # ==============================================
-                self.close()
-                return
-            
             
             '''
             # 第二天收盘 就平仓   已测试 1 - 6 天 大幅提高失败率
@@ -200,20 +191,7 @@ class SimpleVolumeStrategy(bt.Strategy):
    
                 
         
-        
-             
-# 是否是四巫日       
-def is_quadruple_witching(date) -> bool:
-    #"""仅按规则：3/6/9/12 月的第3个周五（不考虑休市调整）"""
-    d = pd.Timestamp(date).tz_localize(None).normalize()
-    if d.month not in (3, 6, 9, 12):
-        return False 
-    third_fris = pd.date_range(start=f'{d.year}-01-01',
-                               end=f'{d.year}-12-31',
-                               freq='WOM-3FRI').normalize()
-    return d in third_fris
-
-
+  
 # 定时卖出 helper function
 def get_target_time(date):
     
