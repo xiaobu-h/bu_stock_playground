@@ -21,9 +21,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
     def __init__(self):
         self.data = self.datas[0]
         self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
-        self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=LOOKBACK_DAYS) #用于判断
-        self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)  # for logging
-        self.vol_sma30 = bt.indicators.SimpleMovingAverage(self.data.volume, period=30) # for logging
+        self.vol_sma = bt.indicators.SimpleMovingAverage(self.data.volume, period=LOOKBACK_DAYS)
         self.balance_by_date = defaultdict(float)
         self.size = 0
         self.signal_today = False
@@ -89,8 +87,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             self.zhusun_price = self.data.low[0] * STOP_LOSS_THRESHOLD[self.index] if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
             
             logger = logging.getLogger(__name__)
-            logger.info(f"[{date}] {extra_message} Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*self.profile, 3 )} - stop:{round(self.zhusun_price, 3 )}; ")
-            logger.info(f"|-----------> Vol of 5: {round(self.data.volume[0] /self.vol_sma5[0],2)} - Vol of 30: {round(self.data.volume[0] /self.vol_sma30[0],2)} - Increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - Cross:{round((low_band - self.data.open[0]) / low_band *100,1)}% - Stop%:{round(100 - self.zhusun_price/self.data.close[0]*100, 2)}%")
+            logger.info(f"[{date}] {extra_message} Bollinger Jump - {self.p.symbol} - win: {round(self.data.close[0]*self.profile, 3 )} - stop:{round(self.zhusun_price, 3 )}; VOL:{round(self.data.volume[0] /self.vol_sma[0],2)} - increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - cross:{round((low_band - self.data.open[0]) / low_band *100,1)}%")
             return
             
             
@@ -125,7 +122,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
              # ------------止损------------
             if low < self.zhusun_price:
                 if (self.p.printlog):
-                    print("LOSS - BL JUMP -", self.data.datetime.date(0)) 
+                    print("LOSS - BL JUMP -", self.data.datetime.date(0))
                 size = int(ONE_TIME_SPENDING_BOLLINGER / self.entry_price)
                 log_sell(self.global_stats,date, (- size * (self.entry_price - self.zhusun_price)), self.p.symbol)
                 
@@ -137,7 +134,7 @@ class BollingerVolumeBreakoutStrategy(bt.Strategy):
             if high >= self.entry_price * self.profile:
                 log_sell(self.global_stats,date, ONE_TIME_SPENDING_BOLLINGER * (self.profile - 1), self.p.symbol)
                 if (self.p.printlog):
-                    print("Win - BL JUMP -", self.data.datetime.date(0)) 
+                    print("Win - BL JUMP -", self.data.datetime.date(0))
                 self.ordered = False
                 self.close()
                 if self.is_targeted:

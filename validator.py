@@ -3,6 +3,9 @@ import pandas as pd
 import yfinance as yf
 import datetime
 
+import logging
+import os
+
 from ib_fetcher import fetch_data_from_ibkr, ib_connect,ib_disconnect
 from collections import defaultdict
  
@@ -22,14 +25,13 @@ CONNECT_N_DOWNLOAD = True
 
 
 def main():
-
-    start="2020-09-10"
-    end="2025-09-23"   # 五年
-     
- 
+    
     symbol = ["DXCM"]
+ 
     
 # ========================================== 
+    start=""
+    end  = "2025-09-29"# datetime.datetime.now().strftime("%Y-%m-%d")
 
 
     ib = ib_connect() if CONNECT_N_DOWNLOAD else None
@@ -73,7 +75,15 @@ def main():
             is_backtest = True,
         )
     cerebro.run() 
-    
+    file_path = os.path.join("data_validator_results", f"{end}_{symbol}.log")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    logging.basicConfig(
+        filename=file_path,
+        level=logging.INFO,
+        format='[%(asctime)s] %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     print_global_stats(global_stats)
     get_next_earnings(symbol[0])
                
@@ -84,9 +94,11 @@ def main():
 def get_next_earnings(symbol):
     
     print("--------------------------------财报日-----------------------------------")
+    logging.info("-------------------------------- EARNING -----------------------------------")
     tk = yf.Ticker(symbol)
     df = tk.get_earnings_dates(limit=5)  # limit 参数控制获取几条
     print( df)
+    logging.info( df)
    
 
     
@@ -130,11 +142,12 @@ def print_global_stats(global_stats):
 
     
     print("------------------------------ SUMMARY ---------------------------------")
+    logging.info("------------------------------ SUMMARY ---------------------------------")
     net_profit = round(total_win_money + total_loss_money,2) 
     print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
-
+    logging.info(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
     print(f"Total Wins={total_wins} | Total Losses={total_losses} | Extra={total_extra_counter} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
-
+    logging.info(f"Total Wins={total_wins} | Total Losses={total_losses} | Extra={total_extra_counter} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
  
  
  

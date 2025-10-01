@@ -17,8 +17,10 @@ class AttackReversalStrategy(bt.Strategy):
     )     
 
     def __init__(self):
-        self.vol_sma5 = bt.indicators.SMA(self.data.volume, period=LOOKBACK_DAYS)
-        self.stop_loss_price = 0.0
+        self.vol_sma = bt.indicators.SMA(self.data.volume, period=LOOKBACK_DAYS)
+        self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)  # for logging
+        self.vol_sma30 = bt.indicators.SimpleMovingAverage(self.data.volume, period=30) # for logging
+        self.zhusun_price = 0.0
         self.entry_price = 0.0 
         self.signal_today = False
         self.global_stats= self.p.global_stats
@@ -55,7 +57,7 @@ class AttackReversalStrategy(bt.Strategy):
             return False
    
 
-        if self.data.volume[0] <= self.vol_sma5[0] * VOLUME_MULTIPLIER[self.index]:
+        if self.data.volume[0] <= self.vol_sma[0] * VOLUME_MULTIPLIER[self.index]:
             return False
         
         if (self.data.open[0] >  self.data.close[-1]) and ((self.data.open[0] - self.data.close[-1]) /self.data.close[-1] > JUMP_HIGH_OPEN[self.index] ): #跳空高开 小于x%
@@ -90,11 +92,11 @@ class AttackReversalStrategy(bt.Strategy):
                 #self.profile = TAKE_PROFIT_PERCENT 
                 
                 extra_message = "[MEGA7]" if self.index == 1  else "" 
-                self.stop_loss_price = self.data.low[0]  * STOP_LOSS_THRESHOLD[self.index] if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
+                self.zhusun_price = self.data.low[0]  * STOP_LOSS_THRESHOLD[self.index] if today_increase < 0.06 else  ( (self.data.open[0] + self.data.open[0] ) / 2)   #竹笋点
              
                 logger = logging.getLogger(__name__)
-                logger.info(f"[{self.data.datetime.date(0)}] {extra_message}Attack Day - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT[self.index], 3 )} - stop:{round(self.stop_loss_price, 3 )} ")
-                      
+                logger.info(f"[{self.data.datetime.date(0)}] {extra_message}Attack Day - {self.p.symbol} - win: {round(self.entry_price*TAKE_PROFIT_PERCENT[self.index], 3 )} - stop:{round(self.zhusun_price, 3 )} ")
+                logger.info(f"|-----------> Vol of 5: {round(self.data.volume[0] /self.vol_sma5[0],2)} - Vol of 30: {round(self.data.volume[0] /self.vol_sma30[0],2)} - Increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% -  Stop%:{round(100 - self.zhusun_price/self.data.close[0]*100, 2)}%")
                 self.buy()  
                 log_buy(self.global_stats,date, self.p.symbol)
                 
@@ -104,9 +106,9 @@ class AttackReversalStrategy(bt.Strategy):
             today_increase = (self.data.close[0] - self.data.open[0]) /self.data.open[0]
            
             # ======= 止损 ===========
-            if   (self.data.low[0] < self.stop_loss_price): 
+            if   (self.data.low[0] < self.zhusun_price): 
                 size = int(ONE_TIME_SPENDING_ATTACK / self.entry_price)
-                log_sell(self.global_stats,date, (- size * (self.entry_price - self.stop_loss_price)), self.p.symbol)
+                log_sell(self.global_stats,date, (- size * (self.entry_price - self.zhusun_price)), self.p.symbol)
                 if (self.p.printlog):
                     print("LOSS - Attack Day -", self.data.datetime.date(0))
                 self.close()

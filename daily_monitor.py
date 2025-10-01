@@ -1,12 +1,11 @@
 import backtrader as bt
 import pandas as pd
-import yfinance as yf
 import logging
 import datetime
 import pandas_market_calendars as mcal
 import os
 
-from ib_fetcher import fetch_data_from_ibkr,download_daily_last_3_months, ib_connect,ib_disconnect
+from ib_fetcher import download_daily_last_3_months, ib_connect,ib_disconnect
 
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime

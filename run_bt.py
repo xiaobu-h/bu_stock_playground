@@ -5,7 +5,8 @@ from ib_fetcher import fetch_data_from_ibkr, ib_connect, ib_disconnect
 from strategy.attack_day.attack_day_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
 from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
-from get_symbols import FINAL_SYMBOLS , NASDAQ100 , TEST_SYMBOLS ,COMMON_SYMBOLS
+from strategy.short.mb_strategy import MuBeiStrategy 
+from get_symbols import BACKTEST_SYMBOLS, NASDAQ100
 from collections import defaultdict
 from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
 import csv
@@ -83,11 +84,11 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     #start="2021-09-01"
     #end="2022-08-28"   # 21 - 22 年
     
-    #start="2023-09-10"
-    #end="2025-09-10"   # 两年
+    start="2023-09-10"
+    end="2025-09-10"   # 两年
     
-    start="2022-09-10"
-    end="2025-09-19"   # 三年
+    #start="2022-09-10"
+    #end="2025-09-19"   # 三年
     
     #start="2020-09-10"
     #end="2025-09-19"   # 五年
@@ -123,15 +124,8 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
                     #         timeframe=bt.TimeFrame.Days,
                      #       compression=1)        # datas[1]
                      
-      
-        cerebro.addstrategy(                 #  2
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol,
-            global_stats = global_stats,
-        )
-        """      
-         cerebro.addstrategy(
+        
+        cerebro.addstrategy(
             SimpleVolumeStrategy,
             printlog=False,                   #   1
             symbol=symbol, 
@@ -139,11 +133,26 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
             global_stats = global_stats,
             is_backtest = True,
             is_hourly_backtest = False,
+        )  
+        """cerebro.addstrategy(                 #  2
+            AttackReversalStrategy,
+            printlog=False,
+            symbol=symbol,
+            global_stats = global_stats,
         )
-         
-        
-          cerebro.addstrategy(
+            
+         cerebro.addstrategy(
             BollingerVolumeBreakoutStrategy,       #3
+            printlog=False,
+            symbol=symbol,
+            only_scan_last_day = False,
+            global_stats = global_stats,
+            is_backtest = True,
+        ) 
+         
+             
+           cerebro.addstrategy(
+            MuBeiStrategy,       
             printlog=False,
             symbol=symbol,
             only_scan_last_day = False,
@@ -181,7 +190,7 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
 # manually run the backtest
 
 if __name__ == "__main__":  
-    avg_bars,total_trading_days = run( FINAL_SYMBOLS) 
+    avg_bars,total_trading_days = run( BACKTEST_SYMBOLS) 
     
      
     total_buys, net_profit = export_global_csv(global_stats, "monthly_winloss.csv")

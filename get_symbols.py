@@ -13,14 +13,20 @@ COMMON_SYMBOLS = ['A', 'AAPL', 'ABBV', 'ABNB', 'ABT', 'ACGL', 'ACN', 'ADBE', 'AD
 NASDAQ100 = ['QCOM', 'AMAT', 'TTD', 'AMD', 'CDNS', 'LRCX', 'ADSK', 'LIN', 'TEAM', 'APP', 'BKR', 'CCEP', 'GILD', 'FTNT', 'INTC', 'MSTR', 'CSCO', 'ISRG', 'ADBE', 'TTWO', 'PLTR', 'LULU', 'META', 'MCHP', 'KLAC', 'CHTR', 'GOOG', 'REGN', 'ASML', 'FANG', 'BIIB', 'NFLX', 'SNPS', 'SHOP', 'BKNG', 'GOOGL', 'CSGP', 'MNST', 'EXC', 'PDD', 'MSFT', 'CRWD', 'GFS', 'AMGN', 'HON', 'DXCM', 'PANW', 'CMCSA', 'ABNB', 'INTU', 'AVGO', 'DDOG', 'COST', 'XEL', 'WDAY', 'GEHC', 'ON', 'PCAR', 'CEG', 'AMZN', 'AXON', 'KHC', 'ADP', 'DASH', 'ROST', 'TMUS', 'ROP', 'ODFL', 'NXPI', 'ADI', 'CTSH', 'AEP', 'AZN', 'NVDA', 'IDXX', 'ORLY', 'KDP', 'CDW', 'CSX', 'PAYX', 'PYPL', 'FAST', 'ARM', 'ZS', 'MELI', 'SBUX', 'MDLZ', 'MU', 'VRTX', 'WBD', 'MRVL', 'AAPL', 'TSLA', 'MAR', 'CTAS', 'CPRT', 'PEP', 'VRSK', 'EA', 'TXN']
 
  
-ADDITIONAL_SYMBOLS = ['HOOD' ,'IBKR' # ,'CLCR', "GME"
+ADDITIONAL_SYMBOLS = ['HOOD' ,'IBKR'  ,"GME" #'CLCR', 
 ]
 
 DIVIDEN_SYMBOLS =  ["XOM", "CVX",  "SO" , "JNJ",  "TGT", "IBM", "PRU" ,
                     "PNC"  , "ENB" , "ET" ,  "JPM" , "PG" ,   "SBUX" ]
-BLOCK_LIST = ["TPL","SW","GFS","COO","CEG", "SOLV","GEHC","ODFL","LIN","ARM","VLTO","GEV","KVUE"]
 
-FINAL_SYMBOLS = list((set(COMMON_SYMBOLS) | set(ADDITIONAL_SYMBOLS)) - set(BLOCK_LIST))
+FINAL_SYMBOLS = COMMON_SYMBOLS + ADDITIONAL_SYMBOLS 
+
+
+# ========================== 
+BLOCK_LIST = ["GME","TPL","SW","GFS","COO","CEG", "SOLV","GEHC","ODFL","LIN","ARM","VLTO","GEV","KVUE"]
+
+BACKTEST_SYMBOLS = list((set(COMMON_SYMBOLS) | set(ADDITIONAL_SYMBOLS)) - set(BLOCK_LIST))
+
 
 
 # 2025 VOL

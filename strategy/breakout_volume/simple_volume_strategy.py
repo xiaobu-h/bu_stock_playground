@@ -25,10 +25,15 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.symbol = self.p.symbol
         self.data_mins = self.datas[0]
         self.data_daily =  self.datas[1] if self.p.is_hourly_backtest else self.datas[0]
+        
+        self.boll = bt.indicators.BollingerBands(self.data.close, period=20, devfactor=2)
+        
         self.order = None
         self.entry_price = None
         self.zhusun_price = None 
         self.vol_sma = bt.indicators.SimpleMovingAverage(self.data_daily.volume, period=SMA_DAYS)
+        self.vol_sma5 = bt.indicators.SimpleMovingAverage(self.data.volume, period=5)  # for logging
+        self.vol_sma30 = bt.indicators.SimpleMovingAverage(self.data.volume, period=30) # for logging
         self.signal_today = False
         self.profile_rate = None
         self.global_stats= self.p.global_stats
@@ -56,7 +61,14 @@ class SimpleVolumeStrategy(bt.Strategy):
            # print(f"[{self.data_daily.datetime.date(0)}]Volume is not a spike.")
             return False
         
-
+        if  ( self.data_daily.close[0] - (self.data_daily.low[0] *ZHUSUN_PERCENT )) / self.data_daily.close[0] < 0.03  :    # 竹笋点 3% 之内 失败率太高不考虑
+            return 
+        
+        
+        if   (self.data_daily.close[0] - self.data_daily.open[0]) / (self.data_daily.high[0] - self.data_daily.low[0]) < 0.25 :   # 如果上影线或下影线过长  实体不足25%
+            return
+            
+            
         #  从昨天最低点 到今天收盘 没有跳空下跌4%以上    -  
         if (self.data_daily.low[-1]  > close) and ((self.data_daily.low[-1] - close) > (self.data_daily.close[-1] * MAX_JUMP_DOWN_PERCENT[self.index])):   
             #print(f"[{self.data_daily.datetime.date(0)}]Jump down too much.")
@@ -92,6 +104,8 @@ class SimpleVolumeStrategy(bt.Strategy):
             zhusun_price =  self.data_daily.low[0] * ZHUSUN_PERCENT # 竹笋点 
             extra_message = "[MEGA7]" if self.index == 1  else "" 
             logger.info(f"[{self.data_daily.datetime.date(0)}] VOL x 2 - {extra_message} {self.p.symbol} - win: {round(self.data_daily.close[0] * profile_rate, 3 )} - stop:{round(zhusun_price, 3 )} ")
+            logger.info(f"|-----------> Vol of 5: {round(self.data.volume[0] /self.vol_sma5 [0],2)} - Vol of 30: {round(self.data.volume[0] /self.vol_sma30[0],2)} - Increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - Stop%:{round(100 - zhusun_price/self.data_daily.close[0]*100, 2)}%")
+            
             return 
         
         
@@ -106,16 +120,17 @@ class SimpleVolumeStrategy(bt.Strategy):
                 today_increase = (self.data_daily.close[0] - self.data_daily.open[0]) /self.data_daily.open[0]
                 self.profile_rate = TAKE_PROFIT_PERCENT_SMALL[self.index] if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE[self.index]
                 self.entry_price = self.data_daily.close[0]
-                
-              
-         
-                
                 self.zhusun_price = self.data_daily.low[0] * ZHUSUN_PERCENT   # 竹笋点 
                 self.buy_date = self.data_daily.datetime.date(0).strftime("%Y-%m-%d")
                 
                 
+                 
+                band = self.boll.lines.bot[0]
               #  if    today_increase> 0.03  and  self.data_daily.volume[-1] * 2.3 < self.data_daily.volume[0] and( self.data_daily.close[-1] >  self.data_daily.open[-1] ) and ( self.data_daily.high[0] -  self.data_daily.close[0] ) * 1.2 > (self.data_daily.close[0]  - self.data_daily.open[0] ) :
-                if  (self.data_daily.close[0] - self.data_daily.low[0]) /self.data_daily.low[0] < 0.07:
+               # 上阴险 if  (self.data_daily.high[0] - self.data_daily.close[0] ) > ((self.data_daily.close[0] - self.data_daily.open[0] )* 0.5)     :
+                #  在上印象之上   if   ( self.data_daily.open[0] > band  )  and  ( self.data_daily.open[0] < band * 1.01)     :   69%
+                    
+                if   ( self.data_daily.close[0] - (self.data_daily.low[0] *ZHUSUN_PERCENT )) / self.data_daily.close[0]  >= 0.07 :   # 竹笋点 2.5% 之内
                     self.global_stats[date]["extra_counter"] += 1
                     self.is_targeted = True
             
