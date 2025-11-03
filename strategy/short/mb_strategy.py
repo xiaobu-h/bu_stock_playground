@@ -14,7 +14,7 @@ class MuBeiStrategy(bt.Strategy):
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
-        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [], "extra_counter":0}),
+        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols_win": [], "sell_symbols_loss": [], "extra_counter":0}),
         ('is_backtest', False)
     )
  
@@ -66,7 +66,7 @@ class MuBeiStrategy(bt.Strategy):
         date = self.data.datetime.date(0).strftime("%Y-%m-%d")
 
         if date not in self.global_stats:
-            self.global_stats[date] = { "buys": 0, "wins": 0, "losses": 0,  "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols": [],"extra_counter": 0} 
+            self.global_stats[date] = { "buys": 0, "wins": 0, "losses": 0,  "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols_win": [], "sell_symbols_loss": [],"extra_counter": 0} 
             
         
         if self.p.only_scan_last_day:

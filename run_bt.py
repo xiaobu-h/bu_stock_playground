@@ -3,9 +3,10 @@ import backtrader as bt
 import pandas as pd
 from ib_fetcher import fetch_data_from_ibkr, ib_connect, ib_disconnect 
 from strategy.attack_day.attack_day_strategy import AttackReversalStrategy, ONE_TIME_SPENDING_ATTACK
-from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy 
+from strategy.bl.bl_jump_strategy import BollingerVolumeBreakoutStrategy 
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy, ONE_TIME_SPENDING
-from strategy.short.mb_strategy import MuBeiStrategy 
+from strategy.bcs.bcs_strategy_copy import BullCallOptionStrategy2
+from strategy.bcs.bcs_strategy import BullCallOptionStrategy
 from get_symbols import BACKTEST_SYMBOLS, NASDAQ100
 from collections import defaultdict
 from strategy.breakout_volume.hold_days_analyzer import TradeDurationAnalyzer
@@ -15,7 +16,7 @@ from strategy.strategy_util import PandasData
 import statistics
 
 
-global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [],"extra_counter":0})
+global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [],  "sell_symbols_win": [], "sell_symbols_loss": [],"extra_counter":0})
  
 SAVE_AS_CSV = True 
     
@@ -34,7 +35,8 @@ def export_global_csv(global_stats, filepath: str):
         wins = global_stats[date]["wins"]
         losses = global_stats[date]["losses"]
         buy_symbols = global_stats[date]["buy_symbols"]
-        sell_symbols = global_stats[date]["sell_symbols"]
+        sell_symbols_win = global_stats[date]["sell_symbols_win"]
+        sell_symbols_loss = global_stats[date]["sell_symbols_loss"]
         
         extra_counter = global_stats[date]["extra_counter"]
 
@@ -43,7 +45,8 @@ def export_global_csv(global_stats, filepath: str):
             "wins": wins,
             "losses": losses,
             "buy_symbols": ",".join(buy_symbols),
-            "sell_symbols": ",".join(sell_symbols),
+            "sell_symbols_win": ",".join(sell_symbols_win),
+            "sell_symbols_loss": ",".join(sell_symbols_loss),
             "buys": global_stats[date]["buys"],
             "net_earn$": round(global_stats[date]["Win$"]+ global_stats[date]["Loss$"],2),
             "extra_counter" : extra_counter,
@@ -58,7 +61,7 @@ def export_global_csv(global_stats, filepath: str):
 
     if SAVE_AS_CSV:
         with open(filepath, "w", newline="", encoding="utf-8") as f:
-           writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols", "buys", "net_earn$", "extra_counter"])
+           writer = csv.DictWriter(f, fieldnames=["date", "wins", "losses", "buy_symbols", "sell_symbols_win", "sell_symbols_loss", "buys", "net_earn$", "extra_counter"])
            writer.writeheader()
            writer.writerows(rows)
 
@@ -66,26 +69,71 @@ def export_global_csv(global_stats, filepath: str):
     
     print("----- SUMMARY -----")
     net_profit = round(total_win_money + total_loss_money,2) 
+   # print(f"Total buys={total_buys} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
     print(f"Total buys={total_buys} | Total Wins$ = {round(total_win_money,2)} | Total Loss $={round(total_loss_money,2)}  | Net P/L $={net_profit}")
 
     print(f"Total Wins={total_wins} | Total Losses={total_losses} | Extra={total_extra_counter} | Overall WinRate={round(total_wins / (total_wins + total_losses) ,4)if (total_wins + total_losses) > 0 else 0.0:.4f}")
 
     return total_buys, net_profit
-   
+
+
+def add_strategy_by_index(cerebro, symbol, index):
+        if index == 0:
+            cerebro.addstrategy(
+                SimpleVolumeStrategy,
+                printlog=False,                   
+                only_scan_last_day=False,
+                global_stats = global_stats,
+                symbol=symbol,
+                is_backtest = True,
+                is_hourly_backtest = False,
+            ) 
+        elif index == 1:
+            cerebro.addstrategy(                
+                AttackReversalStrategy,
+                printlog=False,
+                symbol=symbol,
+                global_stats = global_stats,
+            )   
+        elif index == 2:
+            cerebro.addstrategy(
+                BollingerVolumeBreakoutStrategy,       
+                printlog=False,
+                symbol=symbol,
+                only_scan_last_day = False,
+                global_stats = global_stats,
+                is_backtest = True,
+            )
+        elif index == 3:
+            cerebro.addstrategy(
+                BullCallOptionStrategy,       
+                printlog=False,
+                symbol=symbol,
+                only_scan_last_day = False,
+                global_stats = global_stats,
+                is_backtest = True,
+            )     
+        elif index == 4:
+            cerebro.addstrategy(
+                BullCallOptionStrategy2,       
+                printlog=False,
+                symbol=symbol,
+                only_scan_last_day = False,
+                global_stats = global_stats,
+                is_backtest = True,
+            )
 
 def run(symbols=["AAPL", "MSFT", "NVDA"]):
     
-    #start="2024-09-01"
-    #end="2025-08-28"   # 去年一年
+    start="2024-10-01"
+    end="2025-10-18"   # 去年一年
     #start="2023-09-01"
     #end="2024-08-28"   #  23 - 24 年
     #start="2022-09-01"
     #end="2023-08-28"   # 22 - 23 年
     #start="2021-09-01"
     #end="2022-08-28"   # 21 - 22 年
-    
-    start="2023-09-10"
-    end="2025-09-10"   # 两年
+     
     
     #start="2022-09-10"
     #end="2025-09-19"   # 三年
@@ -96,12 +144,15 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
     #start="2016-09-10"
     #end="2021-09-19"   # 古早 五年 2016
     
-    #start="2025-06-10"
-    #end="2025-09-19"   # 临时
+    #start="2015-10-10"
+    #end="2025-10-03"   #  十年
+    
+    #start="2023-10-10"
+    #end="2025-10-01"   # 临时 两年
     is_connect_n_download = False
     ib = ib_connect() if is_connect_n_download else None
  
-    data_srouce = fetch_data_from_ibkr(interval="1d", duration_str="3 Y", symbols = symbols, start=start, end=end ,useRTH = True, ib = ib, is_connect_n_download=is_connect_n_download, )
+    data_srouce = fetch_data_from_ibkr(interval="1d", duration_str="1 Y", symbols = symbols, start=start, end=end ,useRTH = True, ib = ib, is_connect_n_download=is_connect_n_download, )
     if is_connect_n_download:
         ib_disconnect(ib)
    
@@ -123,44 +174,14 @@ def run(symbols=["AAPL", "MSFT", "NVDA"]):
         #cerebro.resampledata(data_min,
                     #         timeframe=bt.TimeFrame.Days,
                      #       compression=1)        # datas[1]
-                     
         
-        cerebro.addstrategy(
-            SimpleVolumeStrategy,
-            printlog=False,                   #   1
-            symbol=symbol, 
-            only_scan_last_day=False,
-            global_stats = global_stats,
-            is_backtest = True,
-            is_hourly_backtest = False,
-        )  
-        """cerebro.addstrategy(                 #  2
-            AttackReversalStrategy,
-            printlog=False,
-            symbol=symbol,
-            global_stats = global_stats,
-        )
-            
-         cerebro.addstrategy(
-            BollingerVolumeBreakoutStrategy,       #3
-            printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
-            global_stats = global_stats,
-            is_backtest = True,
-        ) 
-         
-             
-           cerebro.addstrategy(
-            MuBeiStrategy,       
-            printlog=False,
-            symbol=symbol,
-            only_scan_last_day = False,
-            global_stats = global_stats,
-            is_backtest = True,
-        )    
-           
-        """
+        # index: 
+        # [0 => VOL * 2], 
+        # [1 => Attack Day ], 
+        # [2 => BL Jump ], 
+        # [3 => BCS Option]
+        # [4 => BCS Option 2 ]
+        add_strategy_by_index(cerebro, symbol, index= 4 )  
         cerebro.addanalyzer(TradeDurationAnalyzer, _name='td')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades") 
         
@@ -204,3 +225,6 @@ if __name__ == "__main__":
         print(  net_profit / max_avg_money / int(total_trading_days / 21 ) )    
     
  
+        
+          
+            

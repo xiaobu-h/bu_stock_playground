@@ -3,8 +3,8 @@ from datetime import datetime ,time
 import pandas as pd
 import logging  
 import pandas_market_calendars as mcal
-from strategy.breakout_volume.sensitive_param import MAX_JUMP_DOWN_PERCENT, VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER ,MEGA7, SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
-from strategy.strategy_util import SIGNAL_SPIKE_DATE , is_quadruple_witching , log_buy, log_sell
+from strategy.breakout_volume.sensitive_param import MAX_JUMP_DOWN_PERCENT, VOLUME_FOR_QUADRUPLE_WITCH_DAY,VOLUME_MULTIPLIER, SMA_DAYS,MIN_TOTAL_INCREASE_PERCENT,ZHUSUN_PERCENT  , STOP_LOSS_THRESHOLD, TAKE_PROFIT_PERCENT_SMALL,TAKE_PROFIT_PERCENT_LARGE ,BAR 
+from strategy.strategy_util import SIGNAL_SPIKE_DATE,MEGA7 , is_quadruple_witching , log_buy, log_sell
 
 
 ONE_TIME_SPENDING = 20000  # 每次买入金额
@@ -15,7 +15,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         ('only_scan_last_day', True),
         ('printlog', False),
         ('symbol', 'UNKNOWN'),
-        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [], "extra_counter":0}),
+        ('global_stats',{"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols_win": [], "sell_symbols_loss": [], "extra_counter":0}),
         ('is_backtest', False),
         ('is_hourly_backtest', False),
     )
@@ -40,7 +40,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         self.buy_date = None
         self.is_targeted = False
         self.index = 1 if self.p.symbol in MEGA7 else 0
-        
+        self.inc = None
 
     
     def check_buy_signal(self): 
@@ -55,7 +55,6 @@ class SimpleVolumeStrategy(bt.Strategy):
             return False
         
         vol = VOLUME_FOR_QUADRUPLE_WITCH_DAY[self.index] if is_quadruple_witching(self.data_daily.datetime.date(0)) else VOLUME_MULTIPLIER[self.index]
-        
          
         if  volume < self.vol_sma[0] * vol : # 交易量放量倍数 
            # print(f"[{self.data_daily.datetime.date(0)}]Volume is not a spike.")
@@ -88,7 +87,7 @@ class SimpleVolumeStrategy(bt.Strategy):
         sell_date =  self.data_mins.datetime.date(0).strftime("%Y-%m-%d")
          
         if date not in self.global_stats:
-            self.global_stats[date] = { "buys": 0, "wins": 0, "losses": 0,  "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols": [],"extra_counter": 0} 
+            self.global_stats[date] = { "buys": 0, "wins": 0, "losses": 0,  "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols_win": [], "sell_symbols_loss": [],"extra_counter": 0} 
               
         if self.p.only_scan_last_day:
             if len(self) < 2 or self.data_daily.datetime.date(0) != datetime.today().date():
@@ -103,8 +102,8 @@ class SimpleVolumeStrategy(bt.Strategy):
             profile_rate = TAKE_PROFIT_PERCENT_SMALL[self.index] if today_increase < BAR else TAKE_PROFIT_PERCENT_LARGE[self.index]
             zhusun_price =  self.data_daily.low[0] * ZHUSUN_PERCENT # 竹笋点 
             extra_message = "[MEGA7]" if self.index == 1  else "" 
-            logger.info(f"[{self.data_daily.datetime.date(0)}] VOL x 2 - {extra_message} {self.p.symbol} - win: {round(self.data_daily.close[0] * profile_rate, 3 )} - stop:{round(zhusun_price, 3 )} ")
-            logger.info(f"|-----------> Vol of 5: {round(self.data.volume[0] /self.vol_sma5 [0],2)} - Vol of 30: {round(self.data.volume[0] /self.vol_sma30[0],2)} - Increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - Stop%:{round(100 - zhusun_price/self.data_daily.close[0]*100, 2)}%")
+            logger.info(f"[{self.data_daily.datetime.date(0)}] VOL x 2 - {extra_message} {self.symbol} - win: {round(self.data_daily.close[0] * profile_rate, 3 )} - stop:{round(zhusun_price, 3 )} ")
+            logger.info(f"|-----------> Vol of 5: {round(self.data.volume[0] /self.vol_sma5 [0],2)} - Vol of 30: {round(self.data.volume[0] /self.vol_sma30[0],2)} - Increase:{round((self.data.close[0] - self.data.open[0])/self.data.close[0] *100, 1)}% - Stop%:{round(100 - zhusun_price/self.data_daily.close[0]*100, 2)}% - Close:{round(self.data_daily.close[0],2)} - Size:{int(ONE_TIME_SPENDING/self.data_daily.close[0])}")
             
             return 
         
@@ -123,41 +122,47 @@ class SimpleVolumeStrategy(bt.Strategy):
                 self.zhusun_price = self.data_daily.low[0] * ZHUSUN_PERCENT   # 竹笋点 
                 self.buy_date = self.data_daily.datetime.date(0).strftime("%Y-%m-%d")
                 
-                
+                self.inc = today_increase * self.data_daily.open[0]
                  
                 band = self.boll.lines.bot[0]
               #  if    today_increase> 0.03  and  self.data_daily.volume[-1] * 2.3 < self.data_daily.volume[0] and( self.data_daily.close[-1] >  self.data_daily.open[-1] ) and ( self.data_daily.high[0] -  self.data_daily.close[0] ) * 1.2 > (self.data_daily.close[0]  - self.data_daily.open[0] ) :
                # 上阴险 if  (self.data_daily.high[0] - self.data_daily.close[0] ) > ((self.data_daily.close[0] - self.data_daily.open[0] )* 0.5)     :
                 #  在上印象之上   if   ( self.data_daily.open[0] > band  )  and  ( self.data_daily.open[0] < band * 1.01)     :   69%
                     
-                if   ( self.data_daily.close[0] - (self.data_daily.low[0] *ZHUSUN_PERCENT )) / self.data_daily.close[0]  >= 0.07 :   # 竹笋点 2.5% 之内
-                    self.global_stats[date]["extra_counter"] += 1
-                    self.is_targeted = True
+                if  self.data_daily.open[-1] > self.data_daily.close[-1] and ( self.data_daily.open[-1] - self.data_daily.close[-1]) >  (self.data_daily.close[0] - self.data_daily.open[0]) * 2  and self.data_daily.volume[-1]  > self.data_daily.volume[0]  and self.data_daily.close[-1] < band :   # 竹笋点 2.5% 之内
+                   self.global_stats[date]["extra_counter"] += 1
+                   self.is_targeted = True
             
-                log_buy(self.global_stats, date, self.p.symbol)
+                log_buy(self.global_stats, date, self.symbol)
           
 
                 # 重复添加 止盈止损判断 以统计 第二天第一个小时的bar  因为在 self.buy()之后 这个bar会被跳过
                 if self.p.is_hourly_backtest:
                     if self.data_mins.low[0] < self.zhusun_price:   
                         size = int(ONE_TIME_SPENDING / self.entry_price)
-                        log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.p.symbol)
+                        log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.symbol)
                         return
                         
                     if  self.data_mins.high[0]  > self.entry_price * self.profile_rate:
-                        log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.p.symbol)
+                        log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.symbol)
                         return
             
                 self.order = self.buy()    
         
         if  self.p.is_backtest and (self.position.size > 0 ): 
-        
+            
+          #  d1 = datetime.strptime(date, "%Y-%m-%d")
+           # d2 = datetime.strptime(self.buy_date, "%Y-%m-%d")
+           # delta = (d1 - d2).days    # 第二天
+           # if delta == 1 and self.data_mins.open[0] > self.data_mins.close[0] and  (self.data_mins.open[0] - self.data_mins.close[0]) >  self.inc  *0.2  :
+               #     self.global_stats[date]["extra_counter"] += 1
+               #     self.is_targeted = True
          
              # 止损
             if self.data_mins.low[0] < self.zhusun_price:  
-                 
+                
                 size = int(ONE_TIME_SPENDING / self.entry_price) 
-                log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.p.symbol)
+                log_sell(global_stats=self.global_stats, date = sell_date, net_change=(-size * (self.entry_price - self.zhusun_price)) ,symbol=self.symbol)
                  
                 if (self.p.printlog):
                     print("LOSS - VOL * 2 -", self.data_daily.datetime.date(0))
@@ -166,12 +171,12 @@ class SimpleVolumeStrategy(bt.Strategy):
                
             # 止盈
             if  self.data_mins.high[0]  > self.entry_price * self.profile_rate:
-              
+               
                 if self.is_targeted:
                     self.global_stats[date]["extra_counter"] += 1000000
                     
                     
-                log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.p.symbol)
+                log_sell(global_stats=self.global_stats, date = sell_date, net_change= ONE_TIME_SPENDING * (self.profile_rate - 1) ,symbol=self.symbol)
         
                 self.close()
                 if (self.p.printlog):
@@ -189,7 +194,7 @@ class SimpleVolumeStrategy(bt.Strategy):
                     
                     size = int(ONE_TIME_SPENDING / self.entry_price)
                     self.global_stats[sell_date]["Win$"] += size * abs(self.entry_price - self.data_mins.close[0])
-                    self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol)
+                    self.global_stats[sell_date]["sell_symbols"].append(self.symbol)
                     # ==============================================
                     self.close()
                     return
@@ -198,11 +203,11 @@ class SimpleVolumeStrategy(bt.Strategy):
                     self.global_stats[sell_date]["losses"] += 1
                     size = int(ONE_TIME_SPENDING / self.entry_price)
                     self.global_stats[sell_date]["Loss$"] -= size * (self.entry_price - self.data_mins.close[0])
-                    self.global_stats[sell_date]["sell_symbols"].append(self.p.symbol)
+                    self.global_stats[sell_date]["sell_symbols"].append(self.symbol)
                     # ==============================================
                     self.close()
                     return
-             '''
+            
    
                 
         
@@ -224,3 +229,4 @@ def get_target_time(date):
     return target_time
 
 
+ '''

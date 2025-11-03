@@ -32,6 +32,7 @@ def fetch_data_from_ibkr(
     is_connect_n_download = False,
     duration_str = "1 Y",
     ib = None,
+    re_download = False,
 ) -> pd.DataFrame:
     if isinstance(symbols, str):
         symbols = [symbols]
@@ -49,11 +50,14 @@ def fetch_data_from_ibkr(
         csv_path = "data/daily" if is_daily_scan else "data"
         file_path = os.path.join(csv_path, f"{symbol}_{interval}_{start}_{end_str}_{str_a}IB.csv")
     
-        if os.path.exists(file_path):
+        if not re_download and os.path.exists(file_path):
             df = pd.read_csv(file_path, index_col="Date", parse_dates=True)
         elif is_connect_n_download: 
-            
-            print(f"⬇️ Downloading data for {symbol} via IBKR")
+            if re_download and os.path.exists(file_path):
+                print(f"|-- Re-downloading data for {symbol} via IBKR")
+                os.remove(file_path)
+            else:
+                print(f"|-- Downloading data for {symbol} via IBKR")
             contract = Stock(symbol, "SMART", "USD")
             ib.qualifyContracts(contract)
 
@@ -109,8 +113,9 @@ def download_daily_last_3_months(
     ib: IB = None,
     end: str = None,
     is_connect_n_download: bool = True,
+    re_download: bool = False,
 ) -> pd.DataFrame: 
-    result = fetch_data_from_ibkr(ib = ib,symbols=symbol,duration_str="3 M" ,interval="1d" , end = end ,useRTH=True , is_daily_scan = True, is_connect_n_download=is_connect_n_download)
+    result = fetch_data_from_ibkr(ib = ib,symbols=symbol,duration_str="3 M" ,interval="1d" , end = end ,useRTH=True , is_daily_scan = True, is_connect_n_download=is_connect_n_download, re_download = re_download)
     return result[symbol]
  
 def ib_connect() -> IB:

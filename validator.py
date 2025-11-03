@@ -1,7 +1,7 @@
 import backtrader as bt
 import pandas as pd
-import yfinance as yf
 import datetime
+import yfinance as yf
 
 import logging
 import os
@@ -10,12 +10,14 @@ from ib_fetcher import fetch_data_from_ibkr, ib_connect,ib_disconnect
 from collections import defaultdict
  
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
-from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy   
+from strategy.bl.bl_jump_strategy import BollingerVolumeBreakoutStrategy   
 from strategy.attack_day.attack_day_strategy import AttackReversalStrategy 
 from strategy.strategy_util import PandasData
+from strategy.bcs.bcs_strategy import BullCallOptionStrategy
+from strategy.bcs.bcs_strategy_copy import BullCallOptionStrategy2
  
  
-global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [], "sell_symbols": [],"extra_counter":0})
+global_stats = defaultdict(lambda: {"buys": 0, "wins": 0, "losses": 0, "Win$": 0, "Loss$": 0, "buy_symbols": [],"sell_symbols_win": [], "sell_symbols_loss": [],"extra_counter":0})
 
    
  
@@ -26,12 +28,12 @@ CONNECT_N_DOWNLOAD = True
 
 def main():
     
-    symbol = ["DXCM"]
+    symbol = ["REGN"]
  
     
 # ========================================== 
     start=""
-    end  = "2025-09-29"# datetime.datetime.now().strftime("%Y-%m-%d")
+    end  =   datetime.datetime.now().strftime("%Y-%m-%d")
 
 
     ib = ib_connect() if CONNECT_N_DOWNLOAD else None
@@ -75,6 +77,32 @@ def main():
             is_backtest = True,
         )
     cerebro.run() 
+    
+    cerebro = bt.Cerebro()
+    data = PandasData(dataname=df)
+    cerebro.adddata(data)
+    cerebro.addstrategy(
+            BullCallOptionStrategy,       
+            printlog=True,
+            symbol=symbol,
+            only_scan_last_day = False,
+            global_stats = global_stats,
+            is_backtest = True,
+        )
+    cerebro.run() 
+    
+    cerebro = bt.Cerebro()
+    data = PandasData(dataname=df)
+    cerebro.adddata(data)
+    cerebro.addstrategy(
+            BullCallOptionStrategy2,       
+            printlog=True,
+            symbol=symbol,
+            only_scan_last_day = False,
+            global_stats = global_stats,
+            is_backtest = True,
+        )
+    cerebro.run() 
     file_path = os.path.join("data_validator_results", f"{end}_{symbol}.log")
     if os.path.exists(file_path):
         os.remove(file_path)
@@ -96,7 +124,7 @@ def get_next_earnings(symbol):
     print("--------------------------------财报日-----------------------------------")
     logging.info("-------------------------------- EARNING -----------------------------------")
     tk = yf.Ticker(symbol)
-    df = tk.get_earnings_dates(limit=5)  # limit 参数控制获取几条
+    df = tk.get_earnings_dates(limit=6)  # limit 参数控制获取几条
     print( df)
     logging.info( df)
    
@@ -115,19 +143,16 @@ def print_global_stats(global_stats):
     for date in sorted(global_stats.keys()):
         wins = global_stats[date]["wins"]
         losses = global_stats[date]["losses"]
-        buy_symbols = global_stats[date]["buy_symbols"]
-        sell_symbols = global_stats[date]["sell_symbols"]
+        buy_symbols = global_stats[date]["buy_symbols"] 
         
         extra_counter = global_stats[date]["extra_counter"]
         flat = [s for sub in buy_symbols for s in sub]
-        
-        flat_sell = [s for sub in sell_symbols for s in sub]
+         
         rows.append({
             "date": date,
             "wins": wins,
             "losses": losses,
-            "buy_symbols": ",".join(flat),
-            "sell_symbols": ",".join(flat_sell),
+            "buy_symbols": ",".join(flat), 
             "buys": global_stats[date]["buys"],
             "net_earn$": round(global_stats[date]["Win$"]+ global_stats[date]["Loss$"],2),
             "extra_counter" : extra_counter,

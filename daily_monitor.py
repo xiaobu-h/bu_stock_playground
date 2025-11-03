@@ -10,11 +10,13 @@ from ib_fetcher import download_daily_last_3_months, ib_connect,ib_disconnect
 from get_symbols import FINAL_SYMBOLS  , NASDAQ100, TEST_SYMBOLS
 from datetime import datetime
 from telegram_bot import send_telegram_message 
-from strategy.bl_jump_lower_open.bl_jump_strategy import BollingerVolumeBreakoutStrategy   
+from strategy.bl.bl_jump_strategy import BollingerVolumeBreakoutStrategy   
 from strategy.attack_day.attack_day_strategy import AttackReversalStrategy
 from strategy.attack_day.sensitive_param import  TAKE_PROFIT_PERCENT as TAKE_PROFIT_ATTACK
 from strategy.breakout_volume.sensitive_param import  TAKE_PROFIT_PERCENT_LARGE, TAKE_PROFIT_PERCENT_SMALL
-from strategy.bl_jump_lower_open.sensitive_param import TAKE_PROFIT_PERCENT as TAKE_PROFIT_BOLLINGER
+from strategy.bl.sensitive_param import TAKE_PROFIT_PERCENT as TAKE_PROFIT_BOLLINGER
+from strategy.bcs.bcs_strategy import BullCallOptionStrategy
+from strategy.bcs.bcs_strategy_copy import BullCallOptionStrategy2
 
 from strategy.strategy_util import PandasData
 from strategy.breakout_volume.simple_volume_strategy import SimpleVolumeStrategy
@@ -37,6 +39,8 @@ ONLY_SCAN_LAST_DAY = False
 SEND_MESSAGE = False
 
 CONNECT_N_DOWNLOAD = True 
+
+RE_DOWNLOAD_DATA = True
 
 # ==========================================
     
@@ -64,7 +68,7 @@ def main():
     
     ib = ib_connect() if CONNECT_N_DOWNLOAD else None
     for symbol in symbols: 
-        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="", is_connect_n_download= CONNECT_N_DOWNLOAD)
+        df = download_daily_last_3_months(symbol = symbol, ib = ib, end="", is_connect_n_download= CONNECT_N_DOWNLOAD, re_download=RE_DOWNLOAD_DATA)  
         if df is None:
             continue 
     
@@ -94,7 +98,11 @@ def main():
             # messages.append(msg)
        # except Exception as e:
           #  logging.warning(f"Error Scanning [Bollinger Low Jump] for {symbol}: {e}")
-               
+        if scan_stock(symbol,df, BullCallOptionStrategy):
+            alert = True 
+        if scan_stock(symbol,df, BullCallOptionStrategy2):
+            alert = True
+            
     if CONNECT_N_DOWNLOAD:
         ib_disconnect(ib)
     if SEND_MESSAGE:    # send summary only when scanning last day
